@@ -1,0 +1,173 @@
+<html>
+<head>
+<title>Member Detail - Riverside CU Back Office</title>
+<style>
+body { background: #d4d0c8; font-family: Verdana, Arial, sans-serif; font-size: 11px;
+       color: #000000; margin: 0; padding: 0; }
+h1 { font-family: Verdana, Arial, sans-serif; font-size: 13px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; letter-spacing: 0.5px; }
+h2 { font-family: Verdana, Arial, sans-serif; font-size: 11px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; }
+table { border-collapse: collapse; }
+table.page { width: 100%; }
+td.masthead { background: #1f3a68; padding: 6px 8px; }
+td.mastheadsub { background: #2f4f86; color: #dfe6f2; font-size: 10px; padding: 3px 8px; }
+td.navbar { background: #ece9d8; border-bottom: 1px solid #808080; padding: 4px 8px;
+            font-size: 10px; }
+table.navrow { width: 100%; }
+td.navcrumb, td.navlinks { font-size: 10px; padding: 0; }
+td.outer { padding: 10px 14px; vertical-align: top; }
+td.spacer { height: 10px; font-size: 1px; line-height: 1px; }
+table.panel { width: 560px; border: 1px solid #808080; background: #ece9d8; margin-bottom: 14px; }
+td.panelhead { background: #1f3a68; padding: 3px 6px; border-bottom: 1px solid #808080; }
+td.panelbody { padding: 8px 10px; }
+table.detail { width: 100%; }
+table.detail td { font-size: 11px; padding: 2px 6px; }
+th.dlabel { color: #404040; width: 170px; text-align: right; font-weight: normal;
+            font-size: 11px; padding: 2px 6px; border-bottom: 1px dotted #b0b0b0; }
+td.dvalue { color: #000000; font-weight: bold; border-bottom: 1px dotted #b0b0b0; }
+table.grid { width: 100%; border: 1px solid #808080; background: #ffffff; }
+table.grid th.gridhead { background: #7b8fb5; color: #ffffff; font-size: 10px; font-weight: bold;
+                         padding: 3px 5px; border: 1px solid #808080; text-align: left; }
+table.grid td.gridcell { font-size: 11px; padding: 3px 5px; border: 1px solid #c0c0c0; }
+td.notice { background: #fffbe6; border: 1px solid #b8a13a; color: #6b5400; padding: 6px 8px; }
+td.footer { background: #ece9d8; border-top: 1px solid #808080; color: #505050; font-size: 10px;
+            padding: 4px 8px; }
+a { color: #1f3a68; }
+a.action { font-weight: bold; }
+.small { font-size: 10px; color: #505050; }
+</style>
+</head>
+<body>
+<table class="page">
+<tr><td class="masthead"><h1>RIVERSIDE CREDIT UNION &nbsp;&mdash;&nbsp; MEMBER SERVICES TERMINAL</h1></td></tr>
+<tr><td class="mastheadsub">Release 4.2.11 &nbsp;|&nbsp; Node CUBOS-03 &nbsp;|&nbsp; Member {{ member.number }}</td></tr>
+<tr><td class="navbar"><table class="navrow"><tr><td class="navcrumb"><a href="/search">Member Services</a> &nbsp;&gt;&nbsp; Enquiry &nbsp;&gt;&nbsp; Detail</td><td class="navlinks" align="right"><a href="/logout">Sign Off</a></td></tr></table></td></tr>
+</table>
+
+<table class="page">
+<tr>
+  <td class="outer">
+
+    <table class="panel">
+      <tr><td class="panelhead"><h2>Member Detail</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          {% if member.status == 'CLOSED' %}
+          <table class="detail"><tr><td class="notice">This membership is closed. Enquiry only.</td></tr></table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+          {% endif %}
+
+          <table class="detail">
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrMemberNumber">Member Number</th>
+              <td class="dvalue" headers="ctl00_cph_hdrMemberNumber">{{ member.number }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrStatus">Status</th>
+              <td class="dvalue" headers="ctl00_cph_hdrStatus">{{ member.status }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrAccountName">Account Name</th>
+              <td class="dvalue" headers="ctl00_cph_hdrAccountName">{{ member.name }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrBranch">Branch</th>
+              <td class="dvalue" headers="ctl00_cph_hdrBranch">{{ member.branch }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrMemberSince">Member Since</th>
+              <td class="dvalue" headers="ctl00_cph_hdrMemberSince">{{ member.joined }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrOfficer">Servicing Officer</th>
+              <td class="dvalue" headers="ctl00_cph_hdrOfficer">{{ member.officer }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrLastContact">Last Contact</th>
+              <td class="dvalue" headers="ctl00_cph_hdrLastContact">{{ member.last_contact }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrTaxId">Tax Id</th>
+              <td class="dvalue" headers="ctl00_cph_hdrTaxId">{{ member.tax_id_masked }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrStatement">Statement</th>
+              <td class="dvalue" headers="ctl00_cph_hdrStatement">{{ member.mailing_preference }}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table class="panel">
+      <tr><td class="panelhead"><h2>Balances</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          <table class="detail">
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrSavingsBalance">Savings Balance</th>
+              <td class="dvalue" headers="ctl00_cph_hdrSavingsBalance">{{ member.savings_balance }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrShareDraftBalance">Share Draft Balance</th>
+              <td class="dvalue" headers="ctl00_cph_hdrShareDraftBalance">{{ member.share_draft_balance }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrCertificateBalance">Certificate Balance</th>
+              <td class="dvalue" headers="ctl00_cph_hdrCertificateBalance">{{ member.certificate_balance }}</td>
+            </tr>
+            <tr>
+              <th class="dlabel" scope="row" id="ctl00_cph_hdrAvailableCredit">Available Credit</th>
+              <td class="dvalue" headers="ctl00_cph_hdrAvailableCredit">{{ member.available_credit }}</td>
+            </tr>
+          </table>
+          <table class="detail"><tr><td class="small">Balances shown as of end of previous business day.</td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <table class="panel">
+      <tr><td class="panelhead"><h2>Sub-accounts</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          {% if member.sub_accounts %}
+          <table class="grid">
+            <tr>
+              <th class="gridhead" scope="col">Suffix</th>
+              <th class="gridhead" scope="col">Type</th>
+              <th class="gridhead" scope="col">Nickname</th>
+              <th class="gridhead" scope="col">Opening Deposit</th>
+            </tr>
+            {% for sub in member.sub_accounts %}
+            <tr>
+              <td class="gridcell">{{ sub.suffix }}</td>
+              <td class="gridcell">{{ sub.type_label }}</td>
+              <td class="gridcell">{{ sub.nickname }}</td>
+              <td class="gridcell">{{ sub.opening_deposit }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% else %}
+          <table class="detail"><tr><td class="small">No sub-accounts are attached to this membership.</td></tr></table>
+          {% endif %}
+
+          {% if member.status == 'ACTIVE' %}
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+          <table class="detail">
+            <tr><td><a class="action" href="/members/{{ member.number }}/subaccount/new">Open Sub-account</a></td></tr>
+          </table>
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+
+  </td>
+</tr>
+</table>
+
+<table class="page">
+<tr><td class="footer">&copy; Riverside Credit Union. System use is monitored and recorded.</td></tr>
+</table>
+</body>
+</html>

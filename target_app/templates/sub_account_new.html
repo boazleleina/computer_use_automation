@@ -1,0 +1,126 @@
+<html>
+<head>
+<title>Open Sub-account - Riverside CU Back Office</title>
+<style>
+body { background: #d4d0c8; font-family: Verdana, Arial, sans-serif; font-size: 11px;
+       color: #000000; margin: 0; padding: 0; }
+h1 { font-family: Verdana, Arial, sans-serif; font-size: 13px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; letter-spacing: 0.5px; }
+h2 { font-family: Verdana, Arial, sans-serif; font-size: 11px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; }
+table { border-collapse: collapse; }
+table.page { width: 100%; }
+td.masthead { background: #1f3a68; padding: 6px 8px; }
+td.mastheadsub { background: #2f4f86; color: #dfe6f2; font-size: 10px; padding: 3px 8px; }
+td.navbar { background: #ece9d8; border-bottom: 1px solid #808080; padding: 4px 8px;
+            font-size: 10px; }
+table.navrow { width: 100%; }
+td.navcrumb, td.navlinks { font-size: 10px; padding: 0; }
+td.outer { padding: 10px 14px; vertical-align: top; }
+td.spacer { height: 10px; font-size: 1px; line-height: 1px; }
+table.panel { width: 620px; border: 1px solid #808080; background: #ece9d8; margin-bottom: 12px; }
+td.panelhead { background: #1f3a68; padding: 3px 6px; border-bottom: 1px solid #808080; }
+td.panelbody { padding: 8px 10px; }
+table.fields td { padding: 4px 4px; font-size: 11px; vertical-align: middle; }
+td.fieldlabel { text-align: right; width: 150px; color: #202020; }
+input.text { font-family: Verdana, Arial, sans-serif; font-size: 11px; border: 1px solid #7f9db9;
+             background: #ffffff; padding: 2px 3px; width: 180px; }
+select.drop { font-family: Verdana, Arial, sans-serif; font-size: 11px; border: 1px solid #7f9db9;
+              background: #ffffff; width: 188px; }
+input.button { font-family: Verdana, Arial, sans-serif; font-size: 11px; background: #ece9d8;
+               border: 1px solid #404040; padding: 2px 12px; cursor: pointer; }
+td.error { background: #fdecec; border: 1px solid #a94442; color: #8a1f1f; padding: 6px 8px;
+           font-weight: bold; }
+td.steps { background: #dfe4ee; border: 1px solid #808080; padding: 4px 8px; font-size: 10px;
+           color: #1f3a68; }
+td.footer { background: #ece9d8; border-top: 1px solid #808080; color: #505050; font-size: 10px;
+            padding: 4px 8px; }
+a { color: #1f3a68; }
+.small { font-size: 10px; color: #505050; }
+</style>
+</head>
+<body>
+<table class="page">
+<tr><td class="masthead"><h1>RIVERSIDE CREDIT UNION &nbsp;&mdash;&nbsp; MEMBER SERVICES TERMINAL</h1></td></tr>
+<tr><td class="mastheadsub">Release 4.2.11 &nbsp;|&nbsp; Node CUBOS-03</td></tr>
+<tr><td class="navbar"><table class="navrow"><tr><td class="navcrumb"><a href="/search">Member Services</a> &nbsp;&gt;&nbsp; <a href="/members/{{ member.number }}">{{ member.number }}</a> &nbsp;&gt;&nbsp; Open Sub-account</td><td class="navlinks" align="right"><a href="/logout">Sign Off</a></td></tr></table></td></tr>
+</table>
+
+<table class="page">
+<tr>
+  <td class="outer">
+    <table class="panel">
+      <tr><td class="panelhead"><h2>Open Sub-account &mdash; Step 1 of 3</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          <table class="fields">
+            <tr><td class="steps">Step 1 Details &nbsp;|&nbsp; Step 2 Review &nbsp;|&nbsp; Step 3 Confirmation</td></tr>
+          </table>
+          <table class="fields"><tr><td class="spacer">&nbsp;</td></tr></table>
+
+          {% if error %}
+          <table class="fields"><tr><td class="error">{{ error }}</td></tr></table>
+          <table class="fields"><tr><td class="spacer">&nbsp;</td></tr></table>
+          {% endif %}
+
+          <table class="fields">
+            <tr>
+              <td class="fieldlabel">Member Number</td>
+              <td><b>{{ member.number }}</b> &nbsp; {{ member.name }}</td>
+            </tr>
+          </table>
+
+          <form method="post" action="/members/{{ member.number }}/subaccount/new">
+          <table class="fields">
+            <tr>
+              <td class="fieldlabel"><label for="ctl00_cph_ddlAccountType">Account Type</label></td>
+              <td>
+                <select class="drop" id="ctl00_cph_ddlAccountType" name="ctl00$cph$ddlAccountType">
+                  <option value="">-- select --</option>
+                  {% for code, label in types %}
+                  <option value="{{ code }}"{% if form.account_type == code %} selected{% endif %}>{{ code }} - {{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td class="fieldlabel"><label for="ctl00_cph_txtNickname">Account Nickname</label></td>
+              <td><input type="text" class="text" id="ctl00_cph_txtNickname" name="ctl00$cph$txtNickname" value="{{ form.nickname|default('', true) }}" maxlength="20"></td>
+            </tr>
+            <tr>
+              <td class="fieldlabel"><label for="ctl00_cph_txtOpeningDeposit">Opening Deposit</label></td>
+              <td><input type="text" class="text" id="ctl00_cph_txtOpeningDeposit" name="ctl00$cph$txtOpeningDeposit" value="{{ form.deposit|default('', true) }}" maxlength="12"></td>
+            </tr>
+            <tr>
+              <td class="fieldlabel"><label for="ctl00_cph_ddlPurpose">Purpose</label></td>
+              <td>
+                <select class="drop" id="ctl00_cph_ddlPurpose" name="ctl00$cph$ddlPurpose">
+                  <option value="">-- select --</option>
+                  {% for code, label in purposes %}
+                  <option value="{{ code }}"{% if form.purpose == code %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td class="fieldlabel">&nbsp;</td>
+              <td class="small">Amounts in dollars and cents, without a currency symbol.</td>
+            </tr>
+            <tr>
+              <td class="fieldlabel">&nbsp;</td>
+              <td><input type="submit" class="button" id="ctl00_cph_btnContinue" name="ctl00$cph$btnContinue" value="Continue"></td>
+            </tr>
+          </table>
+          </form>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+</table>
+
+<table class="page">
+<tr><td class="footer">&copy; Riverside Credit Union. System use is monitored and recorded.</td></tr>
+</table>
+</body>
+</html>

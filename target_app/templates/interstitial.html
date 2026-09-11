@@ -1,0 +1,69 @@
+<html>
+<head>
+<title>System Notice - Riverside CU Back Office</title>
+<style>
+body { background: #d4d0c8; font-family: Verdana, Arial, sans-serif; font-size: 11px;
+       color: #000000; margin: 0; padding: 0; }
+h1 { font-family: Verdana, Arial, sans-serif; font-size: 13px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; letter-spacing: 0.5px; }
+h2 { font-family: Verdana, Arial, sans-serif; font-size: 11px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; }
+table { border-collapse: collapse; }
+table.page { width: 100%; }
+td.masthead { background: #1f3a68; padding: 6px 8px; }
+td.mastheadsub { background: #2f4f86; color: #dfe6f2; font-size: 10px; padding: 3px 8px; }
+td.outer { padding: 24px 14px; vertical-align: top; }
+td.spacer { height: 12px; font-size: 1px; line-height: 1px; }
+table.panel { width: 460px; border: 1px solid #808080; background: #ece9d8; }
+td.panelhead { background: #1f3a68; padding: 3px 6px; border-bottom: 1px solid #808080; }
+td.panelbody { padding: 12px 14px; }
+table.detail { width: 100%; }
+table.detail td { font-size: 11px; padding: 3px 4px; }
+td.notice { background: #fffbe6; border: 1px solid #b8a13a; color: #6b5400; padding: 8px 10px;
+            font-size: 11px; }
+input.button { font-family: Verdana, Arial, sans-serif; font-size: 11px; background: #ece9d8;
+               border: 1px solid #404040; padding: 2px 14px; cursor: pointer; }
+td.footer { background: #ece9d8; border-top: 1px solid #808080; color: #505050; font-size: 10px;
+            padding: 4px 8px; }
+.small { font-size: 10px; color: #505050; }
+</style>
+</head>
+<body>
+<table class="page">
+<tr><td class="masthead"><h1>RIVERSIDE CREDIT UNION &nbsp;&mdash;&nbsp; MEMBER SERVICES TERMINAL</h1></td></tr>
+<tr><td class="mastheadsub">Release 4.2.11 &nbsp;|&nbsp; Node CUBOS-03</td></tr>
+</table>
+
+<table class="page">
+<tr>
+  <td class="outer" align="center">
+    <table class="panel">
+      <tr><td class="panelhead"><h2>System Notice</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          <table class="detail">
+            <tr><td class="notice">A scheduled maintenance window is in progress on node CUBOS-03.
+            Response times may be longer than usual.</td></tr>
+          </table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+          <table class="detail">
+            <tr><td class="small">Select Continue to proceed to the page you requested.</td></tr>
+          </table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+          <form method="get" action="{{ continue_path }}">
+          <table class="detail">
+            <tr><td><input type="submit" class="button" id="ctl00_cph_btnContinue" name="ctl00$cph$btnContinue" value="Continue"></td></tr>
+          </table>
+          </form>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+</table>
+
+<table class="page">
+<tr><td class="footer">&copy; Riverside Credit Union. System use is monitored and recorded.</td></tr>
+</table>
+</body>
+</html>

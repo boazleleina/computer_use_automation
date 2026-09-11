@@ -1,0 +1,100 @@
+<html>
+<head>
+<title>Review Sub-account - Riverside CU Back Office</title>
+<style>
+body { background: #d4d0c8; font-family: Verdana, Arial, sans-serif; font-size: 11px;
+       color: #000000; margin: 0; padding: 0; }
+h1 { font-family: Verdana, Arial, sans-serif; font-size: 13px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; letter-spacing: 0.5px; }
+h2 { font-family: Verdana, Arial, sans-serif; font-size: 11px; font-weight: bold;
+     color: #ffffff; margin: 0; padding: 0; }
+table { border-collapse: collapse; }
+table.page { width: 100%; }
+td.masthead { background: #1f3a68; padding: 6px 8px; }
+td.mastheadsub { background: #2f4f86; color: #dfe6f2; font-size: 10px; padding: 3px 8px; }
+td.navbar { background: #ece9d8; border-bottom: 1px solid #808080; padding: 4px 8px;
+            font-size: 10px; }
+table.navrow { width: 100%; }
+td.navcrumb, td.navlinks { font-size: 10px; padding: 0; }
+td.outer { padding: 10px 14px; vertical-align: top; }
+td.spacer { height: 10px; font-size: 1px; line-height: 1px; }
+table.panel { width: 620px; border: 1px solid #808080; background: #ece9d8; }
+td.panelhead { background: #1f3a68; padding: 3px 6px; border-bottom: 1px solid #808080; }
+td.panelbody { padding: 8px 10px; }
+table.detail { width: 100%; }
+table.detail td { font-size: 11px; padding: 3px 6px; }
+th.dlabel { font-weight: normal; font-size: 11px; padding: 3px 6px; color: #404040; width: 160px; text-align: right; border-bottom: 1px dotted #b0b0b0; }
+td.dvalue { color: #000000; font-weight: bold; border-bottom: 1px dotted #b0b0b0; }
+input.button { font-family: Verdana, Arial, sans-serif; font-size: 11px; background: #ece9d8;
+               border: 1px solid #404040; padding: 2px 12px; cursor: pointer; }
+td.warn { background: #fffbe6; border: 1px solid #b8a13a; color: #6b5400; padding: 6px 8px; }
+td.steps { background: #dfe4ee; border: 1px solid #808080; padding: 4px 8px; font-size: 10px;
+           color: #1f3a68; }
+td.footer { background: #ece9d8; border-top: 1px solid #808080; color: #505050; font-size: 10px;
+            padding: 4px 8px; }
+a { color: #1f3a68; }
+.small { font-size: 10px; color: #505050; }
+</style>
+</head>
+<body>
+<table class="page">
+<tr><td class="masthead"><h1>RIVERSIDE CREDIT UNION &nbsp;&mdash;&nbsp; MEMBER SERVICES TERMINAL</h1></td></tr>
+<tr><td class="mastheadsub">Release 4.2.11 &nbsp;|&nbsp; Node CUBOS-03</td></tr>
+<tr><td class="navbar"><table class="navrow"><tr><td class="navcrumb"><a href="/search">Member Services</a> &nbsp;&gt;&nbsp; <a href="/members/{{ member.number }}">{{ member.number }}</a> &nbsp;&gt;&nbsp; Review</td><td class="navlinks" align="right"><a href="/logout">Sign Off</a></td></tr></table></td></tr>
+</table>
+
+<table class="page">
+<tr>
+  <td class="outer">
+    <table class="panel">
+      <tr><td class="panelhead"><h2>Open Sub-account &mdash; Step 2 of 3</h2></td></tr>
+      <tr>
+        <td class="panelbody">
+          <table class="detail">
+            <tr><td class="steps">Step 1 Details &nbsp;|&nbsp; Step 2 Review &nbsp;|&nbsp; Step 3 Confirmation</td></tr>
+          </table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+
+          <table class="detail">
+            <tr><td class="warn">Check the details below. Selecting Confirm will open the sub-account
+            immediately and the action cannot be reversed from this terminal.</td></tr>
+          </table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+
+          <table class="detail">
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrMemberNumber">Member Number</th><td class="dvalue" headers="ctl00_cph_hdrMemberNumber">{{ member.number }}</td></tr>
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrAccountName">Account Name</th><td class="dvalue" headers="ctl00_cph_hdrAccountName">{{ member.name }}</td></tr>
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrAccountType">Account Type</th><td class="dvalue" headers="ctl00_cph_hdrAccountType">{{ pending.account_type }} - {{ type_label }}</td></tr>
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrAccountNickname">Account Nickname</th><td class="dvalue" headers="ctl00_cph_hdrAccountNickname">{{ pending.nickname }}</td></tr>
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrOpeningDeposit">Opening Deposit</th><td class="dvalue" headers="ctl00_cph_hdrOpeningDeposit">{{ pending.deposit }}</td></tr>
+            <tr><th class="dlabel" scope="row" id="ctl00_cph_hdrPurpose">Purpose</th><td class="dvalue" headers="ctl00_cph_hdrPurpose">{{ purpose_label }}</td></tr>
+          </table>
+          <table class="detail"><tr><td class="spacer">&nbsp;</td></tr></table>
+
+          <table class="detail">
+            <tr>
+              <td>
+                <form method="post" action="/members/{{ member.number }}/subaccount/review">
+                <input type="submit" class="button" id="ctl00_cph_btnConfirm" name="ctl00$cph$btnConfirm" value="Confirm">
+                </form>
+              </td>
+              <td>
+                <form method="get" action="/members/{{ member.number }}/subaccount/new">
+                <input type="submit" class="button" id="ctl00_cph_btnBack" name="ctl00$cph$btnBack" value="Back">
+                </form>
+              </td>
+              <td class="small">No changes have been made yet.</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+</table>
+
+<table class="page">
+<tr><td class="footer">&copy; Riverside Credit Union. System use is monitored and recorded.</td></tr>
+</table>
+</body>
+</html>
