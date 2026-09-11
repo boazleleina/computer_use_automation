@@ -147,6 +147,7 @@ def test_the_handwritten_artifact_survives_a_round_trip(store):
     assert [step.id for step in capability.steps] == [
         "enter_member_number",
         "submit_lookup",
+        "open_member",
         "read_savings_balance",
         "read_account_name",
     ]

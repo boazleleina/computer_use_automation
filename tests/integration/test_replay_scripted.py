@@ -84,6 +84,7 @@ def test_the_handwritten_artifact_parses(capability):
     assert [s.id for s in capability.steps] == [
         "enter_member_number",
         "submit_lookup",
+        "open_member",
         "read_savings_balance",
         "read_account_name",
     ]
@@ -92,9 +93,16 @@ def test_the_handwritten_artifact_parses(capability):
 # ------------------------------------------------------------------- the five
 
 
-def test_success(capability, search_page, search_page_filled, member_detail):
-    """The member exists and the balance comes back."""
-    result, surface = run(capability, [search_page, search_page_filled, member_detail])
+def test_success(capability, search_page, search_page_filled, search_results, member_detail):
+    """The member exists and the balance comes back.
+
+    Four screens, because submitting the search returns a result grid and the
+    row has to be opened. A script that went straight from the form to the
+    member page would be asserting a transition the application never makes.
+    """
+    result, surface = run(
+        capability, [search_page, search_page_filled, search_results, member_detail]
+    )
 
     assert result.outcome is Outcome.SUCCESS
     assert result.ok
@@ -108,10 +116,16 @@ def test_success(capability, search_page, search_page_filled, member_detail):
     assert result.resolved_via_by_step == {
         "enter_member_number": SignalKind.ROLE_NAME,
         "submit_lookup": SignalKind.ROLE_NAME,
+        "open_member": SignalKind.ROLE_NAME,
         "read_savings_balance": SignalKind.ANCHOR,
         "read_account_name": SignalKind.ANCHOR,
     }
-    assert [call.action_type for call in surface.acted] == [ActionType.TYPE, ActionType.CLICK]
+    # Type the number, submit, open the row. Reads are not actions.
+    assert [call.action_type for call in surface.acted] == [
+        ActionType.TYPE,
+        ActionType.CLICK,
+        ActionType.CLICK,
+    ]
 
 
 def test_business_outcome(capability, search_page, search_page_filled_unknown, not_found):
@@ -133,22 +147,40 @@ def test_business_outcome(capability, search_page, search_page_filled_unknown, n
     assert result.outcome not in {Outcome.HARD_FAILURE, Outcome.RECOVERABLE}
 
 
-def test_hard_failure(capability, search_page, search_page_filled, member_denied):
-    """The operator may not view this membership. Not retryable, not an answer."""
-    result, _ = run(capability, [search_page, search_page_filled, member_denied])
+def test_hard_failure(
+    capability,
+    search_page,
+    search_page_filled_restricted,
+    search_results_restricted,
+    member_denied,
+):
+    """The operator may not view this membership. Not retryable, not an answer.
+
+    The search finds the member, so the result grid appears as it would for
+    anyone; the refusal lands when the row is opened.
+    """
+    result, _ = run(
+        capability,
+        [search_page, search_page_filled_restricted, search_results_restricted, member_denied],
+        member_id="100047",
+    )
 
     assert result.outcome is Outcome.HARD_FAILURE
     assert result.condition_name == "access_restricted"
     assert "SEC-0042" not in (result.detail or "")
 
 
-def test_auth_intervention(capability, search_page, search_page_filled, session_expired):
+def test_auth_intervention(
+    capability, search_page, search_page_filled, search_results, session_expired
+):
     """The session aged out. A person is needed, and no credential is typed.
 
     The expired page is served at the route of the member page it replaced, so
     the route alone would have read as success. Severity decides it.
     """
-    result, surface = run(capability, [search_page, search_page_filled, session_expired])
+    result, surface = run(
+        capability, [search_page, search_page_filled, search_results, session_expired]
+    )
 
     assert result.outcome is Outcome.INTERVENTION_REQUIRED
     assert result.condition_name == "session_expired"
@@ -157,17 +189,20 @@ def test_auth_intervention(capability, search_page, search_page_filled, session_
     assert typed == [MEMBER_ID]  # the member number, and nothing else
 
 
-def test_recoverable(capability, search_page, search_page_filled, interstitial, member_detail):
+def test_recoverable(
+    capability, search_page, search_page_filled, search_results, interstitial, member_detail
+):
     """A maintenance notice is in the way. Dismiss it and carry on."""
     result, surface = run(
-        capability, [search_page, search_page_filled, interstitial, member_detail]
+        capability,
+        [search_page, search_page_filled, search_results, interstitial, member_detail],
     )
 
     assert result.outcome is Outcome.SUCCESS
     assert result.outputs["savings_balance"] == "4820.55"
 
     clicks = [c for c in surface.acted if c.action_type is ActionType.CLICK]
-    assert len(clicks) == 2  # Find, then Continue on the notice
+    assert len(clicks) == 3  # Find, the member row, then Continue on the notice
 
 
 # ------------------------------------------------------- bounds and refusals
@@ -416,7 +451,7 @@ def test_a_mutating_capability_that_was_never_approved_does_not_run(
 
 
 def test_an_approved_mutating_capability_runs(
-    capability, search_page, search_page_filled, member_detail
+    capability, search_page, search_page_filled, search_results, member_detail
 ):
     approved = Capability(
         contract=replace(capability.contract, effect=Effect.MUTATING, approval=Approval.APPROVED),
@@ -424,7 +459,9 @@ def test_an_approved_mutating_capability_runs(
         conditions=capability.conditions,
         success=capability.success,
     )
-    result, _ = run(approved, [search_page, search_page_filled, member_detail])
+    result, _ = run(
+        approved, [search_page, search_page_filled, search_results, member_detail]
+    )
 
     assert result.outcome is Outcome.SUCCESS
 
