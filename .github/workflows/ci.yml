@@ -37,11 +37,31 @@ jobs:
       - name: Test
         run: pytest
 
-      # The domain claims no third party dependency at all. Installing nothing
-      # but pytest and running the suite is the only way to keep that honest;
-      # a passing suite in the full dev environment proves nothing about it.
-      - name: Domain suite with no dependencies installed
+      # The domain claims no third party dependency at all, and a suite passing
+      # in the full dev environment proves nothing about that. This imports
+      # every domain module into a virtualenv with nothing installed, not even
+      # pytest, so anything reaching outside the standard library fails here.
+      #
+      # Checked by importing rather than by running tests: tests/unit also
+      # covers adapters, which legitimately read YAML, and scoping the claim to
+      # whichever tests happen to live in a directory is not the claim.
+      - name: Domain imports nothing but the standard library
         run: |
           python -m venv /tmp/bare
-          /tmp/bare/bin/pip install --quiet pytest
-          PYTHONPATH=src:. /tmp/bare/bin/pytest tests/unit -q -p no:cacheprovider
+          /tmp/bare/bin/python - <<'CHECK'
+          import importlib, pkgutil, sys
+          sys.path.insert(0, "src")
+          import cua.domain
+
+          failures = []
+          for module in pkgutil.walk_packages(cua.domain.__path__, "cua.domain."):
+              try:
+                  importlib.import_module(module.name)
+              except Exception as error:
+                  failures.append(f"{module.name}: {error}")
+
+          for failure in failures:
+              print(f"  {failure}")
+          print(f"{'FAILED' if failures else 'ok'}: domain modules importable with nothing installed")
+          sys.exit(1 if failures else 0)
+          CHECK

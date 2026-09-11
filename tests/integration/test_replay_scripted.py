@@ -10,6 +10,7 @@ not change anything.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 import yaml
@@ -19,7 +20,16 @@ from cua.adapters.scripted_surface import ScriptedSurface
 from cua.app.replay import ReplayCapability
 from cua.domain.actions import ActionType, Effect
 from cua.domain.artifact import capability_from_document
-from cua.domain.capability import Capability, SignalKind
+from cua.domain.capability import (
+    Approval,
+    Capability,
+    Confidence,
+    Signal,
+    SignalKind,
+    Step,
+    TargetSpec,
+)
+from cua.domain.conditions import RecoveryAction
 from cua.domain.errors import MalformedArtifact
 from cua.domain.observation import Observation
 from cua.domain.outcomes import Outcome, Result
@@ -91,7 +101,15 @@ def test_success(capability, search_page, search_page_filled, member_detail):
         "savings_balance": "4820.55",
         "account_name": "Test Member One",
     }
-    assert result.resolved_via is SignalKind.ANCHOR
+    # Per step, not one value for the run. Drift is a property of a target:
+    # a capability whose third step has started resolving on a weaker signal is
+    # about to break there, and a single value cannot say where.
+    assert result.resolved_via_by_step == {
+        "enter_member_number": SignalKind.ROLE_NAME,
+        "submit_lookup": SignalKind.ROLE_NAME,
+        "read_savings_balance": SignalKind.ANCHOR,
+        "read_account_name": SignalKind.ANCHOR,
+    }
     assert [call.action_type for call in surface.acted] == [ActionType.TYPE, ActionType.CLICK]
 
 
@@ -166,6 +184,80 @@ def test_an_interstitial_that_never_clears_asks_for_a_person(
     assert len(dismissals) <= RECOVERIES_PER_STEP + 1
 
 
+def waiting_instead_of_dismissing(capability: Capability, wait_ms: int = 1500) -> Capability:
+    """The same capability, with the interstitial waited out rather than clicked.
+
+    A page still loading has nothing to click. The artifact says which of the
+    two this is, and the engine does not have to guess.
+    """
+    conditions = tuple(
+        replace(
+            condition,
+            recovery=replace(
+                condition.recovery, action=RecoveryAction.WAIT, wait_ms=wait_ms, target=None
+            ),
+        )
+        if condition.recovery is not None
+        else condition
+        for condition in capability.conditions
+    )
+    return Capability(
+        contract=capability.contract,
+        steps=capability.steps,
+        conditions=conditions,
+        success=capability.success,
+    )
+
+
+def test_waiting_out_a_recoverable_condition_goes_through_the_clock(
+    capability, search_page, search_page_filled, interstitial
+):
+    """The reason the Clock port exists.
+
+    A bounded wait tested against a real clock takes as long as the bound it is
+    testing, so either the suite is slow or the bound is shortened and the thing
+    under test is no longer the thing that ships. Here the run believes it
+    waited for three seconds and the test takes none.
+
+    The run still ends in an escalation, and that is the fake being honest
+    rather than a bug. ScriptedSurface advances on act and nothing else, so a
+    screen that only a passing second would change cannot change here. Waiting
+    past something is a property of a live application, and it belongs in the
+    tests that drive one.
+    """
+    clock = FakeClock()
+    surface = ScriptedSurface([search_page, search_page_filled, interstitial, interstitial])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock)
+
+    result = engine.run(
+        waiting_instead_of_dismissing(capability), {"member_id": MEMBER_ID}, run_id="run_1"
+    )
+
+    assert clock.slept == [1500, 1500]
+    assert clock.total_slept_ms == 3000
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+
+    # Waiting is not an action on the application. Nothing was clicked to clear
+    # the notice: only the two actions the capability itself performs.
+    assert [c.action_type for c in surface.acted] == [ActionType.TYPE, ActionType.CLICK]
+
+
+def test_waiting_is_bounded_like_dismissing(
+    capability, search_page, search_page_filled, interstitial
+):
+    """A page that never finishes loading is not waited on forever."""
+    clock = FakeClock()
+    surface = ScriptedSurface([search_page, search_page_filled] + [interstitial] * 6)
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock)
+
+    result = engine.run(
+        waiting_instead_of_dismissing(capability), {"member_id": MEMBER_ID}, run_id="run_1"
+    )
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert len(clock.slept) <= RECOVERIES_PER_STEP
+
+
 def test_an_action_outside_the_allowlist_never_reaches_the_surface(
     capability, search_page, search_page_filled, member_detail
 ):
@@ -209,6 +301,148 @@ def test_a_missing_required_input_is_refused(capability, search_page):
     with pytest.raises(MalformedArtifact):
         engine.run(capability, {}, run_id="run_1")
 
+    assert surface.acted == []
+
+
+def test_a_link_leaving_the_allowed_routes_is_refused_without_being_followed(
+    capability, search_page, member_detail
+):
+    """The route half of the guard, proven through the engine rather than the
+    rules on their own.
+
+    The landmine list is emptied so only the route rule can fire. Sign Off
+    carries a destination of /logout, which is not a route this run may visit,
+    and the proof that it was refused before it was followed is that the surface
+    was never asked to click anything.
+    """
+    sign_off = next(n for n in search_page.nodes if n.name == "Sign Off")
+    assert sign_off.destination == "/logout"
+
+    leaving = Capability(
+        contract=capability.contract,
+        steps=(
+            Step(
+                id="sign_off",
+                action_type=ActionType.CLICK,
+                target=TargetSpec(
+                    intent="the sign off link",
+                    rationale="written by a test",
+                    signals=(
+                        Signal(
+                            kind=SignalKind.ROLE_NAME,
+                            confidence=Confidence.HIGH,
+                            role="link",
+                            name="Sign Off",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        conditions=capability.conditions,
+    )
+    routes_only = Policy(
+        allowed_origins=POLICY.allowed_origins,
+        allowed_routes=POLICY.allowed_routes,
+        allowed_actions=POLICY.allowed_actions,
+        denied_controls=(),
+    )
+    result, surface = run(leaving, [search_page, member_detail], policy=routes_only)
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.observed == "route_not_allowed"
+    assert surface.acted == []
+
+
+def test_a_checkpoint_whose_control_vanished_fails_rather_than_throwing(
+    capability, search_page, member_detail
+):
+    """`target_ref: self` re-resolves against the screen after the action.
+
+    Here the field is gone from that screen entirely, so there is no subject to
+    read back. That has to read as the checkpoint not holding, not as an
+    exception from inside the engine.
+    """
+    result, _ = run(capability, [search_page, member_detail])
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.step_id == "enter_member_number"
+    assert result.expected and "100045" in result.expected
+
+
+def test_the_final_screen_is_settled_like_every_other_one(
+    capability, search_page, session_expired
+):
+    """The last screen is exactly where a session expires.
+
+    Looking at it without settling would report an expiry as "the success
+    condition did not hold", which names the symptom and hides the cause.
+    """
+    nothing_to_do = Capability(
+        contract=capability.contract,
+        steps=(),
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, _ = run(nothing_to_do, [session_expired])
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.condition_name == "session_expired"
+
+
+# ------------------------------------------------------------- the two guards
+
+
+def test_a_mutating_capability_that_was_never_approved_does_not_run(
+    capability, search_page, search_page_filled, member_detail
+):
+    """The approval gate, asked once, before a run exists.
+
+    read_only hides this today. The first capability that writes inherits a
+    guard, and it has to be one that actually fires.
+    """
+    mutating = Capability(
+        contract=replace(capability.contract, effect=Effect.MUTATING),
+        steps=capability.steps,
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, surface = run(mutating, [search_page, search_page_filled, member_detail])
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.observed == "approval_required"
+    assert surface.acted == []
+    assert result.step_id is None
+
+
+def test_an_approved_mutating_capability_runs(
+    capability, search_page, search_page_filled, member_detail
+):
+    approved = Capability(
+        contract=replace(capability.contract, effect=Effect.MUTATING, approval=Approval.APPROVED),
+        steps=capability.steps,
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, _ = run(approved, [search_page, search_page_filled, member_detail])
+
+    assert result.outcome is Outcome.SUCCESS
+
+
+def test_starting_against_an_expired_session_escalates_at_step_zero(
+    capability, session_expired
+):
+    """The contract says the run needs an authenticated session.
+
+    Checking it before step one means a cold start against an expired session
+    takes the same path a mid-run expiry takes, rather than getting three steps
+    in and discovering it.
+    """
+    assert "authenticated_session" in capability.contract.preconditions
+
+    result, surface = run(capability, [session_expired])
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.step_id is None
     assert surface.acted == []
 
 

@@ -10,6 +10,11 @@ Each step observes before it does anything. Whatever was resolved last time
 belongs to a screen that may since have been replaced, and a handle to a
 replaced screen is dead — the surface enforces that rather than trusting this
 loop to remember.
+
+Every step writes what it did as it goes, rather than one summary at the end.
+A record that says only how a run finished cannot answer which target started
+resolving on a weaker signal, and that question is the whole reason signals are
+ranked.
 """
 
 import re
@@ -59,26 +64,105 @@ class ReplayCapability:
     operator: OperatorChannel | None = None
 
     def run(self, capability: Capability, inputs: Mapping[str, str], run_id: str) -> Result:
-        state = _RunState(
-            capability=capability,
-            bound=_bind_inputs(capability, inputs),
-            run=Run.start(
-                run_id=run_id,
-                capability=capability.contract.name,
-                version=capability.contract.version,
-            ),
+        """Execute a capability, or refuse before anything has been done.
+
+        The two guards come first and in this order: a capability that may not
+        run unattended should not produce a run at all, and inputs that do not
+        match the contract should not be typed into a live application.
+        """
+        contract = capability.contract
+        state = _RunState(capability=capability, run_id=run_id, bound={}, run=None)
+
+        gate = self.policy.may_run_unattended(contract.effect, approved=contract.approved)
+        if isinstance(gate, Denied):
+            return self._refused_before_starting(state, gate)
+
+        state.bound = _bind_inputs(capability, inputs)
+        state.run = Run.start(
+            run_id=run_id, capability=contract.name, version=contract.version
         )
+        self._emit(
+            state,
+            "run_started",
+            capability=contract.name,
+            version=contract.version,
+            effect=contract.effect.value,
+            approval=contract.approval.value,
+        )
+
+        unmet = self._check_preconditions(state)
+        if unmet is not None:
+            return unmet
 
         for step in capability.steps:
             finished = self._run_step(state, step)
             if finished is not None:
                 return finished
-            state.run = state.run.advance()
+            state.run = state.active.advance()
 
         return self._finish(state)
 
+    # ---- guards before the first step -------------------------------------
+
+    def _refused_before_starting(self, state: "_RunState", gate: Denied) -> Result:
+        """No Run is started at all.
+
+        A capability refused unattended did not execute and did not partially
+        execute, and a run record for it would imply otherwise.
+        """
+        contract = state.capability.contract
+        result = Result(
+            run_id=state.run_id,
+            capability=contract.name,
+            version=contract.version,
+            outcome=Outcome.HARD_FAILURE,
+            detail=gate.reason,
+            expected="a capability approved for unattended replay",
+            observed=gate.rule.value,
+        )
+        self._emit(state, "run_refused", reason=gate.reason, rule=gate.rule.value)
+        return result
+
+    def _check_preconditions(self, state: "_RunState") -> Result | None:
+        """Look once before step one, and stop if the ground is not what the
+        capability said it needed.
+
+        A precondition names a checkpoint. A condition that declares the same
+        name as its resume_checkpoint is, by construction, the thing that makes
+        that checkpoint untrue: session_expired resumes on authenticated_session,
+        so session_expired holding means authenticated_session does not.
+
+        Checking here means a run started against an already expired session
+        escalates at step zero rather than three steps in, through the same path
+        a mid-run expiry takes.
+        """
+        if not state.capability.contract.preconditions:
+            return None
+
+        observation, classification = self._observe_and_classify(state)
+        condition = state.condition()
+        if condition is None or condition.resume_checkpoint is None:
+            return None
+        if condition.resume_checkpoint not in state.capability.contract.preconditions:
+            return None
+
+        state.run = state.active.escalate(
+            _reason_for(condition), resume_checkpoint=condition.resume_checkpoint
+        )
+        self._emit(
+            state,
+            "precondition_unmet",
+            precondition=condition.resume_checkpoint,
+            condition=classification.condition_name,
+        )
+        return self._escalate(state, None, observation)
+
+    # ---- the phases of one step -------------------------------------------
+
     def _run_step(self, state: "_RunState", step: Step) -> Result | None:
         """One step, or the Result that ends the run inside it."""
+        self._emit(state, "step_started", step=step.id, action=step.action_type.value)
+
         settled = self._settle(state, step)
         if isinstance(settled, Result):
             return settled
@@ -106,37 +190,69 @@ class ReplayCapability:
             return after
         return self._checkpoint(state, step, after)
 
-    def _settle(self, state: "_RunState", step: Step) -> Observation | Result:
-        """Observe and classify until the screen is one this step can work on.
+    def _observe_and_classify(self, state: "_RunState") -> tuple[Observation, Classification]:
+        """Look at the screen and decide what it means. Changes nothing."""
+        observation = self.surface.observe()
+        classification = classify(observation, state.capability.conditions)
+        state.classification = classification
+        return observation, classification
+
+    def _attempt_recovery(self, state: "_RunState", observation: Observation) -> bool:
+        """Clear something that is merely in the way. True if a try was spent.
+
+        False when the condition declares no recovery or the artifact's bound is
+        gone, which is the caller's signal to ask for a person instead.
+        """
+        condition = state.condition()
+        recovery = condition.recovery if condition else None
+        if recovery is None or state.active.recovery_count() >= recovery.max_attempts:
+            return False
+
+        if recovery.action is RecoveryAction.WAIT:
+            self.clock.sleep(recovery.wait_ms)
+        elif recovery.target is not None:
+            cleared = resolve(recovery.target, observation, self._kinds())
+            if isinstance(cleared, Resolved):
+                self.surface.act(ActionType.CLICK, cleared.ref)
+
+        state.run = state.active.recover()
+        self._emit(
+            state,
+            "recovered",
+            condition=state.classification.condition_name if state.classification else None,
+            action=recovery.action.value,
+            attempt=state.active.recovery_count(),
+        )
+        return True
+
+    def _settle(self, state: "_RunState", step: Step | None) -> Observation | Result:
+        """Observe until the screen is one the run can work on.
 
         A recoverable condition is cleared and looked at again, up to the bound
         the artifact declared. Exhausting that bound asks for a person: waiting
         has demonstrably stopped working, and waiting again will not fix it.
         """
         while True:
-            observation = self.surface.observe()
-            state.classification = classify(observation, state.capability.conditions)
-            condition = state.condition()
+            observation, classification = self._observe_and_classify(state)
+            self._emit(
+                state,
+                "classified",
+                step=step.id if step else None,
+                condition=classification.condition_name,
+                outcome=classification.outcome.value,
+                matched=list(classification.matched),
+            )
 
-            if state.classification.outcome is not Outcome.RECOVERABLE:
-                if state.classification.outcome in TERMINAL_OUTCOMES:
-                    return self._stop(state, step)
+            if classification.outcome is not Outcome.RECOVERABLE:
+                if classification.outcome in TERMINAL_OUTCOMES:
+                    return self._stop(state, step, observation, classification)
                 return observation
 
-            recovery = condition.recovery if condition else None
-            if recovery is None or state.run.recovery_count() >= recovery.max_attempts:
-                state.run = state.run.escalate(
+            if not self._attempt_recovery(state, observation):
+                state.run = state.active.escalate(
                     EscalationReason.RECOVERY_EXHAUSTED, resume_checkpoint="step_precondition"
                 )
-                return self._escalate(state, step)
-
-            if recovery.action is RecoveryAction.WAIT:
-                self.clock.sleep(recovery.wait_ms)
-            elif recovery.target is not None:
-                cleared = resolve(recovery.target, observation, self._kinds())
-                if isinstance(cleared, Resolved):
-                    self.surface.act(ActionType.CLICK, cleared.ref)
-            state.run = state.run.recover()
+                return self._escalate(state, step, observation)
 
     def _locate(
         self, state: "_RunState", step: Step, target: TargetSpec, observation: Observation
@@ -144,11 +260,20 @@ class ReplayCapability:
         resolution = resolve(target, observation, self._kinds())
 
         if isinstance(resolution, Resolved):
-            state.resolved_via = resolution.via_signal
+            state.resolved_via[step.id] = resolution.via_signal
+            self._emit(
+                state,
+                "resolved",
+                step=step.id,
+                intent=target.intent,
+                via_signal=resolution.via_signal.value,
+                signal_index=resolution.signal_index,
+                skipped=[kind.value for kind in resolution.skipped],
+            )
             return resolution.ref
 
         if isinstance(resolution, Ambiguous):
-            state.run = state.run.escalate(
+            state.run = state.active.escalate(
                 EscalationReason.AMBIGUOUS_CONTROL, resume_checkpoint="target_unique"
             )
             return self._result(
@@ -158,9 +283,10 @@ class ReplayCapability:
                 step=step,
                 expected=f"exactly one control matching {target.intent!r}",
                 observed=f"{resolution.count} matched on {resolution.at_signal.value}",
+                capture=True,
             )
 
-        state.run = state.run.escalate(
+        state.run = state.active.escalate(
             EscalationReason.TARGET_NOT_FOUND, resume_checkpoint="target_present"
         )
         return self._result(
@@ -170,6 +296,7 @@ class ReplayCapability:
             step=step,
             expected=target.intent,
             observed=f"{observation.page_title} at {observation.url_pattern}",
+            capture=True,
         )
 
     def _check_policy(
@@ -184,8 +311,17 @@ class ReplayCapability:
         route = _fill(step.value, state.bound) if step.action_type is ActionType.NAVIGATE else None
         verdict = self.policy.evaluate(step.action_type, node=node, route=route)
 
+        self._emit(
+            state,
+            "policy_check",
+            step=step.id,
+            action=step.action_type.value,
+            allowed=not isinstance(verdict, Denied),
+            rule=verdict.rule.value if isinstance(verdict, Denied) else None,
+        )
+
         if isinstance(verdict, Denied):
-            state.run = state.run.fail(verdict.reason)
+            state.run = state.active.fail(verdict.reason)
             return self._result(
                 state,
                 Outcome.HARD_FAILURE,
@@ -202,8 +338,14 @@ class ReplayCapability:
                 raise MalformedArtifact(f"step {step.id!r} reads but names no target or output")
             value = self.surface.read(subject)
             state.outputs[step.reads_into] = _transform(state.capability, step.reads_into, value)
+            self._emit(state, "read", step=step.id, into=step.reads_into, value=value)
             return
-        self.surface.act(step.action_type, subject, _fill(step.value, state.bound))
+
+        filled = _fill(step.value, state.bound)
+        self.surface.act(step.action_type, subject, filled)
+        # The raw value goes out. Redaction belongs to the sink, which is the
+        # one place every value on its way to disk passes through.
+        self._emit(state, "acted", step=step.id, action=step.action_type.value, value=filled)
 
     def _checkpoint(self, state: "_RunState", step: Step, after: Observation) -> Result | None:
         """A step that silently did nothing must not look like one that worked.
@@ -219,7 +361,10 @@ class ReplayCapability:
         for detector in step.checkpoint:
             bound = _fill_detector(detector, state.bound)
             if not bound.holds(after, subject):
-                state.run = state.run.fail(f"checkpoint failed after {step.id}")
+                self._emit(
+                    state, "checkpoint", step=step.id, held=False, expected=_describe(bound)
+                )
+                state.run = state.active.fail(f"checkpoint failed after {step.id}")
                 return self._result(
                     state,
                     Outcome.HARD_FAILURE,
@@ -227,7 +372,10 @@ class ReplayCapability:
                     step=step,
                     expected=_describe(bound),
                     observed=f"{after.page_title} at {after.url_pattern}",
+                    capture=True,
                 )
+
+        self._emit(state, "checkpoint", step=step.id, held=True)
         return None
 
     def _subject_for(self, step: Step, after: Observation) -> NodeRef | None:
@@ -242,53 +390,100 @@ class ReplayCapability:
         found = resolve(step.target, after, self._kinds())
         return found.ref if isinstance(found, Resolved) else None
 
-    def _stop(self, state: "_RunState", step: Step) -> Result:
-        classification = state.classification
+    # ---- endings -----------------------------------------------------------
+
+    def _stop(
+        self,
+        state: "_RunState",
+        step: Step | None,
+        observation: Observation,
+        classification: Classification,
+    ) -> Result:
+        """End the run on what the screen says.
+
+        The classification is passed in rather than read back off the state: the
+        caller has just computed it, and taking it as an argument removes the
+        question of whether it could be missing.
+        """
         if classification.outcome is not Outcome.INTERVENTION_REQUIRED:
-            state.run = state.run.fail(classification.detail)
+            state.run = state.active.fail(classification.detail)
             return self._result(
-                state, classification.outcome, detail=classification.detail, step=step
+                state,
+                classification.outcome,
+                detail=classification.detail,
+                step=step,
+                capture=classification.outcome is Outcome.HARD_FAILURE,
             )
 
         condition = state.condition()
-        state.run = state.run.escalate(
+        state.run = state.active.escalate(
             _reason_for(condition),
             resume_checkpoint=(condition.resume_checkpoint if condition else None)
             or "step_precondition",
         )
-        return self._escalate(state, step)
+        return self._escalate(state, step, observation)
 
-    def _escalate(self, state: "_RunState", step: Step) -> Result:
+    def _escalate(self, state: "_RunState", step: Step | None, observation: Observation) -> Result:
         """Ask for a person, and stop. The automation issues nothing further."""
-        if self.operator is not None and state.run.state.value == "paused":
+        reference = self._capture(state, step)
+
+        if self.operator is not None and state.active.awaiting_operator:
+            # The screen that caused the decision, not a fresh look at the
+            # world. On a live browser those differ: a page still settling
+            # would show the operator something the classifier never saw.
             self.operator.request_intervention(
-                run_id=state.run.run_id,
-                reason=state.classification.detail or "a person is needed",
-                observation=self.surface.observe(),
+                run_id=state.run_id,
+                reason=state.detail() or "a person is needed",
+                observation=observation,
+                screenshot_ref=reference,
             )
         return self._result(
             state,
             Outcome.INTERVENTION_REQUIRED,
-            detail=state.classification.detail,
+            detail=state.detail(),
             step=step,
+            evidence_ref=reference,
         )
 
     def _finish(self, state: "_RunState") -> Result:
-        """Every step ran. The capability's own success check decides the rest."""
-        final = self.surface.observe()
+        """Every step ran. The capability's own success check decides the rest.
+
+        Settled like every other read of the screen. The last screen is exactly
+        where a session expires, and looking without settling would report that
+        as "the success condition did not hold" rather than as the expiry it is.
+        """
+        settled = self._settle(state, None)
+        if isinstance(settled, Result):
+            return settled
+
         for detector in state.capability.success:
             bound = _fill_detector(detector, state.bound)
-            if not bound.holds(final):
-                state.run = state.run.fail("the success condition did not hold")
+            if not bound.holds(settled):
+                state.run = state.active.fail("the success condition did not hold")
                 return self._result(
                     state,
                     Outcome.HARD_FAILURE,
                     detail="every step ran and the capability did not end where it should",
                     expected=_describe(bound),
-                    observed=f"{final.page_title} at {final.url_pattern}",
+                    observed=f"{settled.page_title} at {settled.url_pattern}",
+                    capture=True,
                 )
-        state.run = state.run.succeed()
+
+        state.run = state.active.succeed()
         return self._result(state, Outcome.SUCCESS, detail="the capability completed")
+
+    # ---- reporting ---------------------------------------------------------
+
+    def _capture(self, state: "_RunState", step: Step | None) -> str | None:
+        """Keep a picture of the screen that ended the run.
+
+        A structured result says what went wrong. An image says what it looked
+        like, which is what someone who was not there actually needs.
+        """
+        if self.evidence is None:
+            return None
+        name = f"{step.id if step else 'run'}-{state.run_id}.png"
+        return self.evidence.attach(state.run_id, name, self.surface.screenshot())
 
     def _result(
         self,
@@ -298,66 +493,86 @@ class ReplayCapability:
         step: Step | None = None,
         expected: str | None = None,
         observed: str | None = None,
+        evidence_ref: str | None = None,
+        capture: bool = False,
     ) -> Result:
+        reference = evidence_ref or (self._capture(state, step) if capture else None)
         result = Result(
-            run_id=state.run.run_id,
-            capability=state.run.capability,
-            version=state.run.version,
+            run_id=state.run_id,
+            capability=state.capability.contract.name,
+            version=state.capability.contract.version,
             outcome=outcome,
             detail=detail,
-            condition_name=state.classification.condition_name,
+            condition_name=(
+                state.classification.condition_name if state.classification else None
+            ),
             outputs=dict(state.outputs),
             step_id=step.id if step is not None else None,
             expected=expected,
             observed=observed,
-            resolved_via=state.resolved_via,
+            evidence_ref=reference,
+            resolved_via_by_step=dict(state.resolved_via),
         )
-        self._record(state, result)
+        self._emit(
+            state,
+            "run_finished",
+            outcome=result.outcome.value,
+            condition=result.condition_name,
+            detail=result.detail,
+            step=result.step_id,
+            expected=result.expected,
+            observed=result.observed,
+            evidence_ref=result.evidence_ref,
+            run_state=state.run.state.value if state.run else None,
+        )
         return result
 
-    def _record(self, state: "_RunState", result: Result) -> None:
+    def _emit(self, state: "_RunState", event: str, **fields: object) -> None:
+        """One line of the run's own account of itself."""
         if self.evidence is None:
             return
         self.evidence.append(
-            result.run_id,
-            {
-                "capability": result.capability,
-                "version": result.version,
-                "outcome": result.outcome.value,
-                "condition": result.condition_name,
-                "detail": result.detail,
-                "step": result.step_id,
-                "expected": result.expected,
-                "observed": result.observed,
-                "resolved_via": result.resolved_via.value if result.resolved_via else None,
-                "run_state": state.run.state.value,
-                "at": self.clock.now().isoformat(),
-            },
+            state.run_id, {"event": event, "at": self.clock.now().isoformat(), **fields}
         )
 
     def _kinds(self) -> frozenset[SignalKind]:
         return self.surface.supported_signal_kinds()
 
 
-# Before the first screen has been looked at there is nothing to report.
-_NOTHING_SEEN_YET = Classification(outcome=Outcome.SUCCESS, condition_name=None, detail="")
-
-
 @dataclass
 class _RunState:
-    """Everything one run accumulates, kept out of the engine's signatures."""
+    """Everything one run accumulates, kept out of the engine's signatures.
+
+    Mutable, while everything it holds is frozen. `run` is advanced by _settle,
+    _locate, _check_policy, _checkpoint and _finish; no other method moves it.
+    """
 
     capability: Capability
+    run_id: str
     bound: Mapping[str, str]
-    run: Run
+    # None only between the approval gate and Run.start. A refused capability
+    # never produces a run, so there is nothing to record about one.
+    run: Run | None = None
     outputs: dict[str, str] = field(default_factory=dict)
-    classification: Classification = field(default_factory=lambda: _NOTHING_SEEN_YET)
-    resolved_via: SignalKind | None = None
+    resolved_via: dict[str, SignalKind] = field(default_factory=dict)
+    # None until the first screen has been looked at. A sentinel typed as a
+    # success would be a small lie that a later result could repeat.
+    classification: Classification | None = None
+
+    @property
+    def active(self) -> Run:
+        """The run, once it has started. Every caller is past the gate."""
+        if self.run is None:
+            raise MalformedArtifact("the run has not started")
+        return self.run
+
+    def detail(self) -> str:
+        return self.classification.detail if self.classification else ""
 
     def condition(self) -> Condition | None:
-        name = self.classification.condition_name
-        if name is None:
+        if self.classification is None or self.classification.condition_name is None:
             return None
+        name = self.classification.condition_name
         return next((c for c in self.capability.conditions if c.name == name), None)
 
 

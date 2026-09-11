@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 # standard library only; these serve composition.py, which parses config.yaml
 # and .env into typed settings before wiring any adapter.
 dependencies = [
+    "pyyaml>=6.0",                # adapters read capability artifacts as YAML
     "pydantic>=2.7",              # typed config sections, imported directly
     "pydantic-settings[yaml]>=2.2",  # YAML + .env sources; pulls pyyaml, python-dotenv
 ]

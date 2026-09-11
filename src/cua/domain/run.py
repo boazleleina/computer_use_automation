@@ -104,6 +104,15 @@ class Run:
         """
         return self.state is RunState.RUNNING and self.owner is Owner.AUTOMATION
 
+    @property
+    def awaiting_operator(self) -> bool:
+        """Whether a request for a person has been raised and not yet picked up.
+
+        Paused is the only state where that is true: before it nobody has been
+        asked, and after the handover somebody already has it.
+        """
+        return self.state is RunState.PAUSED
+
     def escalation_count(self, reason: EscalationReason) -> int:
         return self.escalations.get(reason, 0)
 
