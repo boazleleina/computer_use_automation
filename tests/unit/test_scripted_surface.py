@@ -144,6 +144,49 @@ def test_nothing_acted_is_how_a_refusal_is_proven(search_page):
     assert surface.acted == []
 
 
+@pytest.mark.parametrize("action", [ActionType.CLICK, ActionType.TYPE, ActionType.SELECT])
+def test_an_action_on_no_control_is_refused(search_page, action):
+    """Every action but navigate is done to something.
+
+    Accepting None would record an action that could not have happened and move
+    the script on underneath it.
+    """
+    surface = ScriptedSurface([search_page])
+
+    with pytest.raises(SurfaceError):
+        surface.act(action, None)
+
+    assert surface.acted == []
+
+
+def test_navigate_addresses_a_route_not_a_control(search_page):
+    """The route travels in the value. A ref here is a malformed call, not a
+    hint to be ignored."""
+    surface = ScriptedSurface([search_page])
+    button = find(search_page, "button", "Find")
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.NAVIGATE, button.ref, "/search")
+
+    assert surface.acted == []
+
+
+def test_acting_on_a_ref_that_names_nothing_is_refused(search_page):
+    """The screen is right and the ref is not. A browser raises; so does this.
+
+    read already refused this. act recording it instead would have left a test
+    asserting an action the real surface could never have performed.
+    """
+    surface = ScriptedSurface([search_page])
+    ghost = NodeRef(observation_id=search_page.observation_id, value="main:999")
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.CLICK, ghost)
+
+    assert surface.acted == []
+    assert surface.observe() is search_page
+
+
 def test_read_is_not_accepted_as_an_action(search_page_filled):
     """Routing a read through act would record it as something the run did and
     advance the application under it."""

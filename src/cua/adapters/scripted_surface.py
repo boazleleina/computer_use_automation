@@ -104,20 +104,29 @@ class ScriptedSurface:
         node_ref: NodeRef | None,
         value: str | None = None,
     ) -> None:
+        """Perform an action. Checked fully before anything is recorded.
+
+        An action that could not have happened must not appear in `acted` and
+        must not move the script on, because a test reads that record as what
+        the run did.
+        """
         if action_type is ActionType.READ:
             raise SurfaceError("read is not an action; call read()")
-        if node_ref is not None:
-            self._reject_stale(node_ref)
+
+        if action_type is ActionType.NAVIGATE:
+            if node_ref is not None:
+                raise SurfaceError("navigate addresses a route, not a control")
+        else:
+            if node_ref is None:
+                raise SurfaceError(f"{action_type.value} needs a control to act on")
+            self._require_present(node_ref)
+
         self.acted.append(ActCall(action_type, node_ref, value))
         self._advance()
 
     def read(self, node_ref: NodeRef) -> str:
         """Read a control. Not recorded in `acted`, and does not advance."""
-        self._reject_stale(node_ref)
-        node = self.observe().node(node_ref)
-        if node is None:
-            raise SurfaceError(f"no node {node_ref.value!r} on the current screen")
-        return readable_value(node)
+        return readable_value(self._require_present(node_ref))
 
     def screenshot(self) -> bytes:
         """A stand-in image. Enough for evidence to have something to attach."""
@@ -138,17 +147,24 @@ class ScriptedSurface:
         """
         self._index = min(self._index + 1, len(self._screens) - 1)
 
-    def _reject_stale(self, node_ref: NodeRef) -> None:
-        """Refuse a ref that belongs to a screen that has been replaced.
+    def _require_present(self, node_ref: NodeRef) -> Node:
+        """The node this ref names, or a refusal saying why it is not there.
 
-        Enforced here exactly as a browser enforces it, because a handle to an
-        element on a page that has since reloaded is dead. Without this a test
-        would pass while carrying a bug the real surface would raise on.
+        Two ways a ref goes bad, and a browser raises on both. The screen it
+        came from may have been replaced, which makes the handle dead however
+        well formed it looks. Or the screen is right and the ref names nothing
+        on it. Acting on either would be acting on a control that is not there,
+        so the fake refuses exactly where the real surface would.
         """
-        current = self.observe().observation_id
-        if node_ref.observation_id != current:
+        current = self.observe()
+        if node_ref.observation_id != current.observation_id:
             raise SurfaceError(
                 f"node {node_ref.value!r} belongs to observation "
-                f"{node_ref.observation_id!r}, but the screen is now {current!r}; "
-                "re-observe before acting"
+                f"{node_ref.observation_id!r}, but the screen is now "
+                f"{current.observation_id!r}; re-observe before acting"
             )
+
+        node = current.node(node_ref)
+        if node is None:
+            raise SurfaceError(f"no node {node_ref.value!r} on the current screen")
+        return node
