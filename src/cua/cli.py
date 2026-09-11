@@ -48,7 +48,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="execute a stored capability; no model is constructed",
     )
     replay.add_argument("--name", required=True, help="capability name")
-    replay.add_argument("--version", type=int, default=1, help="capability version (default: 1)")
+    replay.add_argument(
+        "--version",
+        default="1.0.0",
+        metavar="SEMVER",
+        help="capability version (default: 1.0.0)",
+    )
     replay.add_argument(
         "--input",
         action="append",

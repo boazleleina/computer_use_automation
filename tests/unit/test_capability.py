@@ -45,7 +45,7 @@ NOT_FOUND = Condition(
 LOOKUP = Capability(
     contract=Contract(
         name="lookup_member_balance",
-        version=1,
+        version="1.0.0",
         goal="read a member's savings balance",
         effect=Effect.READ_ONLY,
         inputs=(InputSpec(name="member_id", type="string", sensitivity=Sensitivity.PERSONAL),),
@@ -55,7 +55,7 @@ LOOKUP = Capability(
     ),
     steps=(
         Step(
-            index=0,
+            id="enter_member_number",
             action_type=ActionType.TYPE,
             target=TargetSpec(
                 intent="the member number field",
@@ -68,7 +68,7 @@ LOOKUP = Capability(
             value="{{ inputs.member_id }}",
         ),
         Step(
-            index=1,
+            id="submit_lookup",
             action_type=ActionType.CLICK,
             target=TargetSpec(
                 intent="the enquiry button",
@@ -78,10 +78,10 @@ LOOKUP = Capability(
                            role="button", name="Find"),
                 ),
             ),
-            checkpoint=MEMBER_FOUND,
+            checkpoint=MEMBER_FOUND.detectors,
         ),
         Step(
-            index=2,
+            id="read_savings_balance",
             action_type=ActionType.READ,
             target=TargetSpec(
                 intent="the savings balance value",
@@ -101,7 +101,7 @@ LOOKUP = Capability(
 
 def test_the_contract_declares_what_the_capability_takes_and_returns():
     assert LOOKUP.contract.name == "lookup_member_balance"
-    assert LOOKUP.contract.version == 1
+    assert LOOKUP.contract.version == "1.0.0"
     assert LOOKUP.contract.effect is Effect.READ_ONLY
     assert [spec.name for spec in LOOKUP.contract.inputs] == ["member_id"]
     assert [spec.name for spec in LOOKUP.contract.outputs] == ["savings_balance"]
@@ -126,22 +126,22 @@ def test_the_artifact_holds_no_member_data():
     procedure rather than the flow's, and would carry that member's number into
     every copy of the artifact.
     """
-    typing_step = LOOKUP.step(0)
+    typing_step = LOOKUP.step("enter_member_number")
     assert typing_step.value == "{{ inputs.member_id }}"
 
     written = repr(LOOKUP)
     assert "100045" not in written
 
 
-def test_a_step_is_addressed_by_its_declared_index():
-    assert LOOKUP.step(1).action_type is ActionType.CLICK
+def test_a_step_is_addressed_by_its_declared_id():
+    assert LOOKUP.step("submit_lookup").action_type is ActionType.CLICK
     with pytest.raises(KeyError):
-        LOOKUP.step(99)
+        LOOKUP.step("no_such_step")
 
 
 def test_the_step_that_reads_names_the_output_it_fills():
     """Otherwise a capability declares an output nothing produces."""
-    read_step = LOOKUP.step(2)
+    read_step = LOOKUP.step("read_savings_balance")
     assert read_step.action_type is ActionType.READ
     assert read_step.reads_into == "savings_balance"
     assert read_step.reads_into in {spec.name for spec in LOOKUP.contract.outputs}
@@ -150,8 +150,8 @@ def test_the_step_that_reads_names_the_output_it_fills():
 def test_a_step_carries_the_checkpoint_that_must_hold_after_it():
     """Without one, a step that silently did nothing looks like a step that
     worked."""
-    assert LOOKUP.step(1).checkpoint is MEMBER_FOUND
-    assert LOOKUP.step(0).checkpoint is None
+    assert LOOKUP.step("submit_lookup").checkpoint == MEMBER_FOUND.detectors
+    assert LOOKUP.step("enter_member_number").checkpoint == ()
 
 
 def test_conditions_cover_more_than_the_happy_path():
@@ -173,7 +173,7 @@ def test_a_capability_cannot_declare_a_password_input():
     with pytest.raises(UnsafeCapability) as raised:
         Contract(
             name="sign_on",
-            version=1,
+            version="1.0.0",
             goal="sign the operator in",
             effect=Effect.READ_ONLY,
             inputs=(
@@ -196,7 +196,7 @@ def test_a_capability_cannot_return_a_secret_either():
     with pytest.raises(UnsafeCapability):
         Contract(
             name="fetch_token",
-            version=1,
+            version="1.0.0",
             goal="return a session token",
             effect=Effect.READ_ONLY,
             outputs=(
@@ -212,7 +212,7 @@ def test_personal_and_internal_fields_are_permitted(sensitivity):
     that cannot take a member number cannot do anything."""
     contract = Contract(
         name="lookup",
-        version=1,
+        version="1.0.0",
         goal="read a balance",
         effect=Effect.READ_ONLY,
         inputs=(InputSpec(name="member_id", type="string", sensitivity=sensitivity),),
@@ -229,7 +229,7 @@ def test_a_result_reports_the_outcome_and_the_declared_outputs():
         detail="the member detail page rendered",
         condition_name="MEMBER_FOUND",
         outputs={"savings_balance": "4820.55"},
-        step_index=2,
+        step_id="read_savings_balance",
         resolved_via=SignalKind.ANCHOR,
     )
 
@@ -244,7 +244,7 @@ def test_a_business_outcome_is_neither_ok_nor_a_failure():
     result = Result(
         run_id="run_1",
         capability=LOOKUP.contract.name,
-        version=1,
+        version="1.0.0",
         outcome=Outcome.BUSINESS_OUTCOME,
         detail="the search returned no member",
         condition_name="MEMBER_NOT_FOUND",
@@ -260,11 +260,11 @@ def test_a_failed_result_says_what_it_expected_and_what_it_found():
     result = Result(
         run_id="run_1",
         capability=LOOKUP.contract.name,
-        version=1,
+        version="1.0.0",
         outcome=Outcome.INTERVENTION_REQUIRED,
         detail="the session aged out mid run",
         condition_name="LOGIN_REQUIRED",
-        step_index=1,
+        step_id="submit_lookup",
         expected="heading 'Member Detail'",
         observed="page title 'Sign On - Riverside CU Back Office'",
         evidence_ref="blob://step-1-screenshot.png",

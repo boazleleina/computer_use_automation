@@ -1,0 +1,236 @@
+{
+  "observation_id": "obs_4e535652",
+  "nodes": [
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:0"
+      },
+      "role": "cell",
+      "name": "Release 4.2.11 \u00a0|\u00a0 Node CUBOS-03",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 28.0,
+        "width": 1280.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:1"
+      },
+      "role": "cell",
+      "name": "Member Services \u00a0>\u00a0 Enquiry \u00a0>\u00a0 Detail Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 46.0,
+        "width": 1280.0,
+        "height": 21.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:2"
+      },
+      "role": "heading",
+      "name": "RIVERSIDE CREDIT UNION \u00a0\u2014\u00a0 MEMBER SERVICES TERMINAL",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 6.0,
+        "width": 1264.0,
+        "height": 16.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:3"
+      },
+      "role": "cell",
+      "name": "You are not authorised to view this membership. \u00a0 \u00a0 This membership is flagged for restricted handling. Contact the branch manager or the security desk on extension 4412 to request access. \u00a0 Return to Member Enquiry",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 14.5,
+        "y": 97.5,
+        "width": 559.0,
+        "height": 161.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:4"
+      },
+      "role": "link",
+      "name": "Member Services",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 50.0,
+        "width": 86.0,
+        "height": 12.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/search"
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:5"
+      },
+      "role": "link",
+      "name": "Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 1231.4375,
+        "y": 50.0,
+        "width": 41.0,
+        "height": 12.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/logout"
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:6"
+      },
+      "role": "heading",
+      "name": "Access Restricted",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 81.0,
+        "width": 546.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:7"
+      },
+      "role": "rowheader",
+      "name": "Member Number",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 27.0,
+        "y": 139.0,
+        "width": 162.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:8"
+      },
+      "role": "cell",
+      "name": "100047",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 189.0,
+        "y": 139.0,
+        "width": 372.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:9"
+      },
+      "role": "rowheader",
+      "name": "Reference",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 27.0,
+        "y": 158.0,
+        "width": 162.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:10"
+      },
+      "role": "cell",
+      "name": "SEC-0042",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 189.0,
+        "y": 158.0,
+        "width": 372.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_4e535652",
+        "value": "main:11"
+      },
+      "role": "link",
+      "name": "Return to Member Enquiry",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 33.0,
+        "y": 232.0,
+        "width": 146.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/search"
+    }
+  ],
+  "url_pattern": "/members/{member_id}",
+  "page_title": "Access Restricted - Riverside CU Back Office",
+  "captured_at": "2026-09-11T05:07:11.557737+00:00"
+}

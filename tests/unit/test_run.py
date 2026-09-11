@@ -21,7 +21,7 @@ from cua.domain.run import (
 
 
 def started() -> Run:
-    return Run.start(run_id="run_1", capability="lookup_member_balance", version=1)
+    return Run.start(run_id="run_1", capability="lookup_member_balance", version="1.0.0")
 
 
 def paused_for_auth() -> Run:

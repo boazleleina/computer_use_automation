@@ -22,6 +22,7 @@ dev = [
     "mypy>=1.11",
     "flask>=3.0",          # target_app only: the legacy fixture, not part of the system
     "python-dotenv>=1.0",  # target_app only: reads operator credentials from .env
+    "types-PyYAML>=6.0",   # tests and scripts read YAML; src/ never does
 ]
 
 [project.scripts]

@@ -84,9 +84,10 @@ class Result:
     whole run: the outcome, whatever the capability declared it would return,
     and enough context to debug a run nobody watched.
 
-    `expected` and `observed` are filled in when a checkpoint fails, because
-    "step 4 failed" is not something anyone can act on and "expected the member
-    detail heading, found the sign on page" is.
+    `expected` and `observed` are filled in when a checkpoint fails. Together
+    with the step id they turn "the run failed" into "submit_lookup expected the
+    member detail heading and found the sign on page", which is the difference
+    between a report somebody can act on and one they cannot.
 
     `resolved_via` records which signal actually matched. A capability that has
     started resolving on a weaker signal than it was compiled with is drifting,
@@ -95,12 +96,12 @@ class Result:
 
     run_id: str
     capability: str
-    version: int
+    version: str
     outcome: Outcome
     detail: str
     condition_name: str | None = None
     outputs: Mapping[str, object] = field(default_factory=dict)
-    step_index: int | None = None
+    step_id: str | None = None
     expected: str | None = None
     observed: str | None = None
     evidence_ref: str | None = None
@@ -131,7 +132,7 @@ def classify(observation: Observation, conditions: tuple[Condition, ...]) -> Cla
     not a success. The domain does not know what happened, and the only honest
     thing to do with a screen nobody described is show it to a person.
     """
-    matched = tuple(c for c in conditions if _condition_holds(c, observation))
+    matched = tuple(c for c in conditions if c.holds(observation))
 
     if not matched:
         return Classification(
@@ -149,12 +150,3 @@ def classify(observation: Observation, conditions: tuple[Condition, ...]) -> Cla
         matched=tuple(c.name for c in matched),
     )
 
-
-def _condition_holds(condition: Condition, observation: Observation) -> bool:
-    """Every detector must hold. Detectors within a condition are ANDed.
-
-    Deliberately not ORed: a condition is a description of one screen, and a
-    description that accepts a screen matching only part of it is the weak
-    success condition that causes the trap above.
-    """
-    return all(detector.holds(observation) for detector in condition.detectors)

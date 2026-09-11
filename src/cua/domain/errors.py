@@ -36,6 +36,15 @@ class OperatorError(DomainError):
     """Control could not be handed to a human, or was never returned."""
 
 
+class MalformedArtifact(DomainError):
+    """An artifact document does not describe a capability.
+
+    An authoring mistake: an action nobody implements, a detector kind that does
+    not exist, a step with no id. It fails here, at load, rather than part way
+    through a run against a live application.
+    """
+
+
 class UnsafeCapability(DomainError):
     """A capability that parses, would run, and must not exist.
 
@@ -57,7 +66,7 @@ class InvalidTransition(DomainError):
 class ArtifactNotFound(DomainError):
     """No stored capability matches the requested name and version."""
 
-    def __init__(self, name: str, version: int) -> None:
+    def __init__(self, name: str, version: str) -> None:
         super().__init__(f"no artifact {name!r} at version {version}")
         self.name = name
         self.version = version

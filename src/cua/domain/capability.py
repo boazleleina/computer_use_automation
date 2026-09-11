@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from cua.domain.actions import ActionType, Effect
-from cua.domain.conditions import Condition
+from cua.domain.conditions import Condition, Detector
 from cua.domain.errors import UnsafeCapability
 from cua.domain.observation import Rect
 from cua.domain.policy import Sensitivity
@@ -98,6 +98,36 @@ class TargetSpec:
     signals: tuple[Signal, ...]
 
 
+class Approval(StrEnum):
+    """Whether this version has been signed off.
+
+    A hand written or freshly discovered artifact is a draft. Approval is what
+    a person adds after reading it, and it is per version: editing a step and
+    keeping the approval would defeat the point of recording one.
+    """
+
+    DRAFT = "draft"
+    APPROVED = "approved"
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Where this artifact came from, and what it was written against.
+
+    A capability that resolved cleanly against release 4.2.11 says nothing about
+    4.3, and the first sign of that is usually resolution falling to a weaker
+    signal. Recording the release makes that comparison possible instead of
+    guesswork.
+    """
+
+    source: str
+    author: str = ""
+    app: str = ""
+    release: str = ""
+    variant: str = ""
+    note: str = ""
+
+
 @dataclass(frozen=True)
 class InputSpec:
     """One value the capability takes.
@@ -111,6 +141,8 @@ class InputSpec:
     type: str
     sensitivity: Sensitivity
     required: bool = True
+    pattern: str | None = None
+    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -120,6 +152,8 @@ class OutputSpec:
     name: str
     type: str
     sensitivity: Sensitivity
+    transform: str | None = None
+    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -132,11 +166,18 @@ class Contract:
     """
 
     name: str
-    version: int
+    version: str
     goal: str
     effect: Effect
+    approval: Approval = Approval.DRAFT
+    preconditions: tuple[str, ...] = ()
     inputs: tuple[InputSpec, ...] = ()
     outputs: tuple[OutputSpec, ...] = ()
+    provenance: Provenance | None = None
+
+    @property
+    def approved(self) -> bool:
+        return self.approval is Approval.APPROVED
 
     def __post_init__(self) -> None:
         """A secret must not be an interface value of a capability.
@@ -177,11 +218,11 @@ class Step:
     worked, which is how a run reports a balance it never read.
     """
 
-    index: int
+    id: str
     action_type: ActionType
     target: TargetSpec | None = None
     value: str | None = None
-    checkpoint: Condition | None = None
+    checkpoint: tuple[Detector, ...] = ()
     reads_into: str | None = None
 
 
@@ -198,6 +239,7 @@ class Capability:
     contract: Contract
     steps: tuple[Step, ...] = ()
     conditions: tuple[Condition, ...] = ()
+    success: tuple[Detector, ...] = ()
 
     def declared_sensitivity(self) -> dict[str, Sensitivity]:
         """Field name to sensitivity, for every input and output.
@@ -209,9 +251,14 @@ class Capability:
         declared.update({spec.name: spec.sensitivity for spec in self.contract.outputs})
         return declared
 
-    def step(self, index: int) -> Step:
-        """The step at `index`, by its declared number rather than position."""
+    def step(self, step_id: str) -> Step:
+        """One step by its declared id.
+
+        Steps are addressed by name rather than position because a run record
+        saying "submit_lookup failed" is something a person can act on, and
+        "step 1 failed" is not. Order still comes from the list.
+        """
         for step in self.steps:
-            if step.index == index:
+            if step.id == step_id:
                 return step
-        raise KeyError(f"{self.contract.name} has no step {index}")
+        raise KeyError(f"{self.contract.name} has no step {step_id!r}")
