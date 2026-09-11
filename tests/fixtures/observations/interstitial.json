@@ -1,0 +1,103 @@
+{
+  "observation_id": "obs_601b79c6",
+  "nodes": [
+    {
+      "ref": {
+        "observation_id": "obs_601b79c6",
+        "value": "main:0"
+      },
+      "role": "cell",
+      "name": "Release 4.2.11 \u00a0|\u00a0 Node CUBOS-03",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 28.0,
+        "width": 1280.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_601b79c6",
+        "value": "main:1"
+      },
+      "role": "heading",
+      "name": "RIVERSIDE CREDIT UNION \u00a0\u2014\u00a0 MEMBER SERVICES TERMINAL",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 6.0,
+        "width": 1264.0,
+        "height": 16.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_601b79c6",
+        "value": "main:2"
+      },
+      "role": "cell",
+      "name": "A scheduled maintenance window is in progress on node CUBOS-03. Response times may be longer than usual. \u00a0 Select Continue to proceed to the page you requested. \u00a0",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 410.5,
+        "y": 90.5,
+        "width": 459.0,
+        "height": 143.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_601b79c6",
+        "value": "main:3"
+      },
+      "role": "heading",
+      "name": "System Notice",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 417.0,
+        "y": 74.0,
+        "width": 446.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_601b79c6",
+        "value": "main:4"
+      },
+      "role": "button",
+      "name": "Continue",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 429.0,
+        "y": 183.0,
+        "width": 79.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    }
+  ],
+  "url_pattern": "/members/{member_id}",
+  "page_title": "System Notice - Riverside CU Back Office",
+  "captured_at": "2026-09-11T05:07:19.403972+00:00"
+}

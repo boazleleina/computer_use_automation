@@ -1,0 +1,261 @@
+# Bootstrap artifact. Hand-written, not discovered.
+#
+# Replay consumes artifacts and discovery produces them, so one of the two has
+# to come first. This is that one: it exists so the replay engine can be built
+# and tested before any model runs, and so Phase 5 has a concrete target shape
+# to emit rather than "produce something reasonable".
+#
+
+# Every target and condition below was written against the real dumps in
+# tests/fixtures/observations/, not invented. Node names, roles and route
+# patterns are what the browser actually reports for this application.
+
+schema_version: "1.0"
+
+contract:
+  id: lookup_member_balance
+  version: "1.0.0"
+  description: >
+    Look up a member by number and return their current savings balance.
+  effect: read_only
+  approval: draft            # hand-written artifacts are never pre-approved
+
+  provenance:
+    source: hand_written
+    author: bootstrap
+    recorded_against:
+      app: riverside_cu_backoffice
+      release: "4.2.11"
+      variant: base
+    note: >
+      Written by hand to bootstrap the replay engine. Not the product of a
+      discovery run. See evidence/discovery_artifact.yaml for that.
+
+  preconditions:
+    - authenticated_session
+
+  inputs:
+    - name: member_id
+      type: string
+      pattern: "^[0-9]{6}$"
+      required: true
+      sensitivity: personal      # drives masking at the evidence boundary
+      description: The member number as printed on a statement.
+      # No input may be sensitivity: secret. Credentials are a human handoff,
+      # never a capability parameter — Capability.__post_init__ refuses one.
+
+  outputs:
+    - name: savings_balance
+      type: decimal
+      sensitivity: personal
+      transform: strip_whitespace
+      description: Savings balance as of end of previous business day.
+    - name: account_name
+      type: string
+      sensitivity: personal
+      description: Name on the membership, for caller-side confirmation.
+
+steps:
+  - id: enter_member_number
+    action: type
+    value_template: "{{ inputs.member_id }}"
+    # The concrete number never appears in this file. Parameterising at record
+    # time is what makes this a capability rather than a recording, and it is
+    # also why a personal value is not persisted here.
+    target:
+      intent: Member Number search field
+      rationale: >
+        The field has a real <label for>, so the browser reports an accessible
+        name of "Member Number" and role textbox. That pair is unique on the
+        dashboard: the other two textboxes are From Date / To Date and Document
+        Reference. The generated id is an ASP.NET-style control name and is
+        expected to change across releases, so it is kept only as a namespaced
+        last resort and marked brittle.
+      signals:
+        - kind: role_name
+          role: textbox
+          name: Member Number
+          confidence: high
+        - kind: label
+          text: Member Number
+          confidence: medium
+          # Matches the rowheader duplicate on other pages; safe here because
+          # the dashboard has no such row, but weaker than role_name in general.
+        - kind: web.css
+          selector: "#ctl00_cph_txtMemberNo"
+          confidence: low
+          brittle: true
+    checkpoint:
+      detectors:
+        - kind: field_value_equals
+          target_ref: self
+          value: "{{ inputs.member_id }}"
+
+  - id: submit_lookup
+    action: click
+    target:
+      intent: Find button in the Member Enquiry panel
+      rationale: >
+        Deliberately "Find" and not "Search". Two other buttons on this page are
+        both named "Search" (Recent Activity Filter and Document Register), so a
+        role+name target for "Search" resolves ambiguously and stops. "Find" is
+        unique, which is why the member panel uses that word.
+      signals:
+        - kind: role_name
+          role: button
+          name: Find
+          confidence: high
+        - kind: web.css
+          selector: "#ctl00_cph_btnFind"
+          confidence: low
+          brittle: true
+    checkpoint:
+      detectors:
+        - kind: url_pattern_is
+          pattern: /members/{member_id}
+        - kind: node_present
+          role: heading
+          name: Member Detail
+      # Both, not either. Route alone is satisfied by the expired-session page,
+      # which renders the sign-on form at the route of the page it replaced.
+
+  - id: read_savings_balance
+    action: read
+    reads_into: savings_balance
+    target:
+      intent: Value cell adjacent to the Savings Balance row header
+      rationale: >
+        The value cell is named by its own content ("4820.55"), not by its
+        label, so it cannot be targeted by name without already knowing the
+        answer. The stable fact is the adjacency: every label in this table is a
+        rowheader and every value is the cell immediately following it in
+        document order. The anchor signal encodes that relationship. Three other
+        balance-shaped fields sit in the same table (Share Draft, Certificate,
+        Available Credit), so the anchor must name the row precisely.
+      signals:
+        - kind: anchor
+          role: rowheader
+          name: Savings Balance
+          relation: next_sibling
+          confidence: high
+        - kind: geometry
+          bounds: { x: 207.0, y: 320.0, width: 356.0, height: 18.0 }
+          confidence: low
+          brittle: true
+    checkpoint:
+      detectors:
+        - kind: node_present
+          role: rowheader
+          name: Savings Balance
+
+  - id: read_account_name
+    action: read
+    reads_into: account_name
+    target:
+      intent: Value cell adjacent to the Account Name row header
+      rationale: Same adjacency rule as the balance row.
+      signals:
+        - kind: anchor
+          role: rowheader
+          name: Account Name
+          relation: next_sibling
+          confidence: high
+
+# Conditions are global and precedence is by severity, never declaration order.
+# Because an unmatched screen is INTERVENTION_REQUIRED, every screen the happy
+# path legitimately passes through needs a condition here, not just the ones
+# that go wrong.
+conditions:
+
+  - name: search_page_ready
+    outcome: success
+    detail: Dashboard is displayed and the member enquiry panel is available.
+    detectors:
+      - kind: url_pattern_is
+        pattern: /search
+      - kind: node_present
+        role: heading
+        name: Member Enquiry
+
+  - name: member_detail_ready
+    outcome: success
+    detail: Member detail page is displayed.
+    detectors:
+      - kind: url_pattern_is
+        pattern: /members/{member_id}
+      - kind: node_present
+        role: heading
+        name: Member Detail
+      # The heading is the load-bearing half. An expired session renders at this
+      # same route with HTTP 200, so a route-only success condition would fire
+      # on the sign-on page. Severity precedence would still save the run
+      # because session_expired outranks success, but a condition should not
+      # depend on that to be correct.
+
+  - name: member_not_found
+    outcome: business_outcome
+    detail: No member exists with the supplied number.
+    code: MEMBER_NOT_FOUND
+    detectors:
+      - kind: text_present
+        text: No member matches
+    # Fires on the dashboard, so search_page_ready fires at the same time.
+    # Severity resolves it: business_outcome (1) outranks success (0). The
+    # caller receives a true answer, not a crash and not a false success.
+
+  - name: access_restricted
+    outcome: hard_failure
+    detail: >
+      The membership is flagged for restricted handling and this operator is
+      not permitted to view it.
+    code: PERMISSION_DENIED
+    detectors:
+      - kind: text_present
+        text: not authorised to view this membership
+      - kind: text_present
+        text: SEC-0042
+    # Two detectors because the word "authorised" appearing once on the page is
+    # the only thing separating this from the footer. SEC-0042 is a fixed
+    # reference on the denial page and appears nowhere else.
+
+  - name: session_expired
+    outcome: intervention_required
+    detail: >
+      The session aged out. A human must sign on in this same browser session;
+      the automation does not hold credentials and will not attempt to.
+    code: AUTHENTICATION_REQUIRED
+    resume_checkpoint: authenticated_session
+    detectors:
+      - kind: text_present
+        text: Your session has ended
+      - kind: node_present
+        role: textbox
+        name: Password
+
+  - name: maintenance_interstitial
+    outcome: recoverable
+    detail: A maintenance notice is covering the page.
+    recovery:
+      action: dismiss
+      max_attempts: 2
+      target:
+        intent: Continue button on the maintenance notice
+        signals:
+          - kind: role_name
+            role: button
+            name: Continue
+            confidence: high
+    detectors:
+      - kind: text_present
+        text: scheduled maintenance
+
+success:
+  detectors:
+    - kind: url_pattern_is
+      pattern: /members/{member_id}
+    - kind: node_present
+      role: heading
+      name: Member Detail
+    - kind: node_present
+      role: rowheader
+      name: Savings Balance

@@ -1,57 +1,39 @@
 """Shared test helpers.
 
-Loads the captured Observation fixtures.
-
-The domain does not know what JSON is. ScriptedSurface reads JSON off disk
-because that is its mechanism, the same way a browser surface reads an
-accessibility tree because that is its; both hand back an Observation, and the
-domain type stays a plain frozen dataclass with nothing to deserialise it.
-
-So this parsing lives here until ScriptedSurface exists, which is the thing that
-actually needs it. Then it moves into that adapter and the fixtures below become
-thin wrappers around it.
+The captured screens are loaded by ScriptedSurface, because reading JSON off
+disk is that adapter's mechanism. The fixtures here are thin wrappers over it.
 """
 
-import json
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from cua.domain.observation import Node, NodeRef, Observation, Rect
+from cua.adapters.scripted_surface import load_observation as _load
+from cua.domain.observation import Observation
 
 FIXTURES = Path(__file__).parent / "fixtures" / "observations"
 
 
 def load_observation(name: str) -> Observation:
-    """Read a captured fixture into domain types."""
-    document = json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
-    return Observation(
-        observation_id=document["observation_id"],
-        nodes=tuple(
-            Node(
-                ref=NodeRef(**node["ref"]),
-                role=node["role"],
-                name=node["name"],
-                text=node["text"],
-                frame_id=node["frame_id"],
-                bounds=Rect(**node["bounds"]),
-                enabled=node["enabled"],
-                visible=node["visible"],
-                destination=node["destination"],
-            )
-            for node in document["nodes"]
-        ),
-        url_pattern=document["url_pattern"],
-        page_title=document["page_title"],
-        captured_at=datetime.fromisoformat(document["captured_at"]),
-    )
+    return _load(FIXTURES / f"{name}.json")
 
 
 @pytest.fixture
 def search_page() -> Observation:
     """The dashboard: one control named Find, two named Search."""
     return load_observation("search_page")
+
+
+@pytest.fixture
+def search_page_filled() -> Observation:
+    """The dashboard with a member number typed in, before submitting."""
+    return load_observation("search_page_filled")
+
+
+@pytest.fixture
+def search_page_filled_unknown() -> Observation:
+    """The dashboard with a member number that matches nobody, before submitting."""
+    return load_observation("search_page_filled_unknown")
 
 
 @pytest.fixture
@@ -68,5 +50,17 @@ def not_found() -> Observation:
 
 @pytest.fixture
 def session_expired() -> Observation:
-    """The login page, served where a member page was asked for."""
+    """The sign on page, served where a member page was asked for."""
     return load_observation("session_expired")
+
+
+@pytest.fixture
+def member_denied() -> Observation:
+    """The denial page for a membership flagged for restricted handling."""
+    return load_observation("member_denied")
+
+
+@pytest.fixture
+def interstitial() -> Observation:
+    """A maintenance notice standing in front of the page that was requested."""
+    return load_observation("interstitial")

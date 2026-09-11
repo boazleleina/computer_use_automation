@@ -11,6 +11,11 @@ does not belong in the domain.
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Final
+
+# Controls a person types into or picks from. They carry what was entered; a
+# static control carries what is written on it.
+INPUT_ROLES: Final = frozenset({"textbox", "combobox", "listbox", "checkbox", "radio"})
 
 
 @dataclass(frozen=True)
@@ -77,8 +82,34 @@ class Observation:
     page_title: str
     captured_at: datetime
 
+    def node(self, ref: NodeRef) -> Node | None:
+        """The node this ref points at, or None if it is not on this screen."""
+        return next((n for n in self.nodes if n.ref == ref), None)
+
     def all_text(self) -> str:
         parts: list[str] = [self.page_title]
         parts += [n.text for n in self.nodes if n.text]
         parts += [n.name for n in self.nodes if n.name]
         return " ".join(parts).lower()
+
+
+def readable_value(node: Node) -> str:
+    """What a person would read off this control.
+
+    An input carries its value in `text`, because the browser reports what was
+    entered. Static content carries it in `name`, because a cell's accessible
+    name is computed from its own content.
+
+    That distinction is an accessibility tree detail, and it lives here rather
+    than in a capability: an artifact saying `attribute: name` to read a balance
+    would be exporting a browser quirk into a document a person is meant to
+    approve.
+
+    It lives in the domain rather than in a surface so that every surface reads
+    a control the same way. If a scripted surface and a browser surface each
+    had their own rule, tests would pass against behaviour the browser does not
+    reproduce, which is the failure the captured fixtures exist to prevent.
+    """
+    if node.role in INPUT_ROLES:
+        return node.text or ""
+    return node.name or node.text or ""

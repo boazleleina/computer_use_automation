@@ -19,6 +19,7 @@ them and cannot check them:
 from typing import Protocol
 
 from cua.domain.actions import ActionType
+from cua.domain.capability import SignalKind
 from cua.domain.observation import NodeRef, Observation
 
 
@@ -49,12 +50,17 @@ class Surface(Protocol):
         """
         ...
 
-    def read(self, node_ref: NodeRef) -> str | None:
-        """Extract the text of one control, without changing anything.
+    def read(self, node_ref: NodeRef) -> str:
+        """The value of one control, as a person would read it off the screen.
 
-        Separate from `act` because reading is how a capability produces its
-        typed outputs, and a query that returns a value should not share a
-        signature with a command that does not.
+        Reading is not an action. It takes no policy check, is not recorded as
+        something the run did, and does not advance the application: observing
+        does not change the world.
+
+        There is no attribute parameter. Which field of a node holds the value
+        is an accessibility tree detail, decided by
+        domain.observation.readable_value so that every surface answers the same
+        way, and a capability never has to mention it.
         """
         ...
 
@@ -66,11 +72,15 @@ class Surface(Protocol):
         """
         ...
 
-    def supported_signal_kinds(self) -> frozenset[str]:
+    def supported_signal_kinds(self) -> frozenset[SignalKind]:
         """Which target signal kinds this surface can evaluate.
 
         Lets resolution skip a surface-specific signal such as web.css rather
         than fail on it, and lets the skip be recorded as drift telemetry.
+
+        Passed straight to resolve(), so it is the enum rather than strings: a
+        surface that returned a name resolution does not recognise would silently
+        skip a signal it was meant to honour.
         """
         ...
 

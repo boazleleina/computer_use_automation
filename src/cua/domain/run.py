@@ -82,7 +82,7 @@ class Run:
 
     run_id: str
     capability: str
-    version: int
+    version: str
     state: RunState = RunState.RUNNING
     owner: Owner = Owner.AUTOMATION
     step_index: int = 0
@@ -92,7 +92,7 @@ class Run:
     failure_reason: str = ""
 
     @classmethod
-    def start(cls, run_id: str, capability: str, version: int) -> "Run":
+    def start(cls, run_id: str, capability: str, version: str) -> "Run":
         return cls(run_id=run_id, capability=capability, version=version)
 
     @property
