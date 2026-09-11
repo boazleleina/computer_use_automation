@@ -1,0 +1,293 @@
+{
+  "observation_id": "obs_7f6125a3",
+  "nodes": [
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:0"
+      },
+      "role": "cell",
+      "name": "Release 4.2.11 \u00a0|\u00a0 Node CUBOS-03 \u00a0|\u00a0 Operator: tmiller",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 28.0,
+        "width": 1280.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:1"
+      },
+      "role": "cell",
+      "name": "Member Services \u00a0>\u00a0 Enquiry Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 46.0,
+        "width": 1280.0,
+        "height": 21.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:2"
+      },
+      "role": "heading",
+      "name": "RIVERSIDE CREDIT UNION \u00a0\u2014\u00a0 MEMBER SERVICES TERMINAL",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 6.0,
+        "width": 1264.0,
+        "height": 16.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:3"
+      },
+      "role": "cell",
+      "name": "No member matches",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 14.5,
+        "y": 97.5,
+        "width": 639.0,
+        "height": 98.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:4"
+      },
+      "role": "link",
+      "name": "Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 1231.4375,
+        "y": 50.0,
+        "width": 41.0,
+        "height": 12.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/logout"
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:5"
+      },
+      "role": "heading",
+      "name": "Member Enquiry",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 81.0,
+        "width": 626.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:6"
+      },
+      "role": "heading",
+      "name": "Recent Activity Filter",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 214.0,
+        "width": 626.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:7"
+      },
+      "role": "heading",
+      "name": "Document Register",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 351.0,
+        "width": 626.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:8"
+      },
+      "role": "textbox",
+      "name": "Member Number",
+      "text": "100099",
+      "frame_id": "main",
+      "bounds": {
+        "x": 157.0,
+        "y": 109.0,
+        "width": 150.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:9"
+      },
+      "role": "button",
+      "name": "Find",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 314.734375,
+        "y": 109.0,
+        "width": 49.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:10"
+      },
+      "role": "textbox",
+      "name": "From Date",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 157.0,
+        "y": 242.0,
+        "width": 150.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:11"
+      },
+      "role": "textbox",
+      "name": "To Date",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 157.0,
+        "y": 267.0,
+        "width": 150.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:12"
+      },
+      "role": "button",
+      "name": "Search",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 314.734375,
+        "y": 267.0,
+        "width": 64.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:13"
+      },
+      "role": "textbox",
+      "name": "Document Reference",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 157.0,
+        "y": 379.0,
+        "width": 150.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_7f6125a3",
+        "value": "main:14"
+      },
+      "role": "button",
+      "name": "Search",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 314.734375,
+        "y": 379.0,
+        "width": 64.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    }
+  ],
+  "url_pattern": "/search",
+  "page_title": "Member Services - Riverside CU Back Office",
+  "captured_at": "2026-09-10T22:44:52.153505+00:00"
+}

@@ -1,0 +1,711 @@
+{
+  "observation_id": "obs_b7dfa7fa",
+  "nodes": [
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:0"
+      },
+      "role": "cell",
+      "name": "Release 4.2.11 \u00a0|\u00a0 Node CUBOS-03 \u00a0|\u00a0 Member 100045",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 28.0,
+        "width": 1280.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:1"
+      },
+      "role": "cell",
+      "name": "Member Services \u00a0>\u00a0 Enquiry \u00a0>\u00a0 Detail Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 46.0,
+        "width": 1280.0,
+        "height": 21.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:2"
+      },
+      "role": "heading",
+      "name": "RIVERSIDE CREDIT UNION \u00a0\u2014\u00a0 MEMBER SERVICES TERMINAL",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 6.0,
+        "width": 1264.0,
+        "height": 16.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:3"
+      },
+      "role": "cell",
+      "name": "Balances shown as of end of previous business day.",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 14.5,
+        "y": 311.5,
+        "width": 559.0,
+        "height": 106.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:4"
+      },
+      "role": "cell",
+      "name": "No sub-accounts are attached to this membership. \u00a0 Open Sub-account",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 14.5,
+        "y": 452.5,
+        "width": 559.0,
+        "height": 61.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:5"
+      },
+      "role": "link",
+      "name": "Member Services",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 50.0,
+        "width": 86.0,
+        "height": 12.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/search"
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:6"
+      },
+      "role": "link",
+      "name": "Sign Off",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 1231.4375,
+        "y": 50.0,
+        "width": 41.0,
+        "height": 12.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/logout"
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:7"
+      },
+      "role": "heading",
+      "name": "Member Detail",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 81.0,
+        "width": 546.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:8"
+      },
+      "role": "heading",
+      "name": "Balances",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 295.0,
+        "width": 546.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:9"
+      },
+      "role": "heading",
+      "name": "Sub-accounts",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 21.0,
+        "y": 436.0,
+        "width": 546.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:10"
+      },
+      "role": "rowheader",
+      "name": "Member Number",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 106.0,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:11"
+      },
+      "role": "cell",
+      "name": "100045",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 106.0,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:12"
+      },
+      "role": "rowheader",
+      "name": "Status",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 123.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:13"
+      },
+      "role": "cell",
+      "name": "ACTIVE",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 123.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:14"
+      },
+      "role": "rowheader",
+      "name": "Account Name",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 141.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:15"
+      },
+      "role": "cell",
+      "name": "Test Member One",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 141.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:16"
+      },
+      "role": "rowheader",
+      "name": "Branch",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 159.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:17"
+      },
+      "role": "cell",
+      "name": "0031 - Riverside",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 159.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:18"
+      },
+      "role": "rowheader",
+      "name": "Member Since",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 177.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:19"
+      },
+      "role": "cell",
+      "name": "14/03/2009",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 177.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:20"
+      },
+      "role": "rowheader",
+      "name": "Servicing Officer",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 195.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:21"
+      },
+      "role": "cell",
+      "name": "T. Miller",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 195.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:22"
+      },
+      "role": "rowheader",
+      "name": "Last Contact",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 213.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:23"
+      },
+      "role": "cell",
+      "name": "02/09/2026",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 213.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:24"
+      },
+      "role": "rowheader",
+      "name": "Tax Id",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 231.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:25"
+      },
+      "role": "cell",
+      "name": "TIN ****4471",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 231.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:26"
+      },
+      "role": "rowheader",
+      "name": "Statement",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 249.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:27"
+      },
+      "role": "cell",
+      "name": "Paper statement",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 249.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:28"
+      },
+      "role": "rowheader",
+      "name": "Savings Balance",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 320.0,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:29"
+      },
+      "role": "cell",
+      "name": "4820.55",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 320.0,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:30"
+      },
+      "role": "rowheader",
+      "name": "Share Draft Balance",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 337.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:31"
+      },
+      "role": "cell",
+      "name": "612.09",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 337.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:32"
+      },
+      "role": "rowheader",
+      "name": "Certificate Balance",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 355.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:33"
+      },
+      "role": "cell",
+      "name": "10000.00",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 355.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:34"
+      },
+      "role": "rowheader",
+      "name": "Available Credit",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 25.0,
+        "y": 373.5,
+        "width": 182.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:35"
+      },
+      "role": "cell",
+      "name": "2500.00",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 207.0,
+        "y": 373.5,
+        "width": 356.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_b7dfa7fa",
+        "value": "main:36"
+      },
+      "role": "link",
+      "name": "Open Sub-account",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 31.0,
+        "y": 490.0,
+        "width": 113.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": "/members/{member_id}/subaccount/new"
+    }
+  ],
+  "url_pattern": "/members/{member_id}",
+  "page_title": "Member Detail - Riverside CU Back Office",
+  "captured_at": "2026-09-10T22:44:51.548139+00:00"
+}

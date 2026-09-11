@@ -1,0 +1,179 @@
+{
+  "observation_id": "obs_3481b1db",
+  "nodes": [
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:0"
+      },
+      "role": "cell",
+      "name": "Release 4.2.11 \u00a0|\u00a0 Node CUBOS-03 \u00a0|\u00a0 Internal system. Staff use only.",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 0.0,
+        "y": 28.0,
+        "width": 1280.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:1"
+      },
+      "role": "heading",
+      "name": "RIVERSIDE CREDIT UNION \u00a0\u2014\u00a0 MEMBER SERVICES TERMINAL",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 8.0,
+        "y": 6.0,
+        "width": 1264.0,
+        "height": 16.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:2"
+      },
+      "role": "cell",
+      "name": "Contact the service desk on extension 4400 if your account is locked.",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 450.5,
+        "y": 85.5,
+        "width": 379.0,
+        "height": 183.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:3"
+      },
+      "role": "heading",
+      "name": "Operator Sign On",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 457.0,
+        "y": 69.0,
+        "width": 366.0,
+        "height": 13.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:4"
+      },
+      "role": "cell",
+      "name": "Your session has ended. Please sign on again to continue.",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 463.5,
+        "y": 96.5,
+        "width": 329.0,
+        "height": 20.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:5"
+      },
+      "role": "cell",
+      "name": "\u00a0",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 463.5,
+        "y": 116.5,
+        "width": 329.0,
+        "height": 18.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:6"
+      },
+      "role": "textbox",
+      "name": "User Id",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 585.0,
+        "y": 137.5,
+        "width": 170.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:7"
+      },
+      "role": "textbox",
+      "name": "Password",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 585.0,
+        "y": 162.5,
+        "width": 170.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    },
+    {
+      "ref": {
+        "observation_id": "obs_3481b1db",
+        "value": "main:8"
+      },
+      "role": "button",
+      "name": "Sign On",
+      "text": null,
+      "frame_id": "main",
+      "bounds": {
+        "x": 585.0,
+        "y": 187.5,
+        "width": 70.0,
+        "height": 19.0
+      },
+      "enabled": true,
+      "visible": true,
+      "destination": null
+    }
+  ],
+  "url_pattern": "/members/{member_id}",
+  "page_title": "Sign On - Riverside CU Back Office",
+  "captured_at": "2026-09-10T22:44:52.710308+00:00"
+}
