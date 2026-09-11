@@ -599,6 +599,10 @@ def _bind_inputs(capability: Capability, inputs: Mapping[str, str]) -> dict[str,
         if spec.name not in inputs:
             if spec.required:
                 raise MalformedArtifact(f"input {spec.name!r} is required and was not supplied")
+            # Declared and omitted. Bound to nothing rather than left unbound,
+            # so a template mentioning it fills with nothing instead of being
+            # mistaken for a name the contract never declared.
+            bound[spec.name] = ""
             continue
         value = str(inputs[spec.name])
         if spec.pattern and not re.fullmatch(spec.pattern, value):
@@ -610,10 +614,22 @@ def _bind_inputs(capability: Capability, inputs: Mapping[str, str]) -> dict[str,
 
 
 def _fill(template: str | None, bound: Mapping[str, str]) -> str | None:
-    """Replace {{ inputs.name }} with the value supplied for this run."""
+    """Replace {{ inputs.name }} with the value supplied for this run.
+
+    A name the contract never declared is refused rather than left as it was.
+    Returning the template unchanged would type the literal text
+    "{{ inputs.member_od }}" into a live application and write it to evidence,
+    and a typo in an artifact should not become input to a bank.
+    """
     if template is None:
         return None
-    return PLACEHOLDER.sub(lambda match: bound.get(match.group(1), match.group(0)), template)
+
+    unknown = sorted({m.group(1) for m in PLACEHOLDER.finditer(template)} - set(bound))
+    if unknown:
+        raise MalformedArtifact(
+            f"template refers to input(s) {unknown} that the contract does not declare"
+        )
+    return PLACEHOLDER.sub(lambda match: bound[match.group(1)], template)
 
 
 def _fill_detector(detector: Detector, bound: Mapping[str, str]) -> Detector:

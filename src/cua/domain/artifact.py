@@ -12,6 +12,7 @@ in one place, is what lets the document read naturally without the domain
 carrying an author's shorthand around.
 """
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -32,6 +33,7 @@ from cua.domain.capability import (
 )
 from cua.domain.conditions import Condition, Detector, DetectorKind, Recovery, RecoveryAction
 from cua.domain.errors import MalformedArtifact
+from cua.domain.observation import Rect
 from cua.domain.outcomes import Outcome
 from cua.domain.policy import Sensitivity
 
@@ -46,12 +48,27 @@ DETECTOR_KEY_ALIASES = {"pattern": "url_pattern"}
 
 def capability_from_document(document: Mapping[str, Any]) -> Capability:
     """Parse an artifact document, or say precisely what is wrong with it."""
+    steps = tuple(_step(s) for s in document.get("steps", ()))
+    _reject_duplicate_step_ids(steps)
     return Capability(
         contract=_contract(_require(document, "contract")),
-        steps=tuple(_step(s) for s in document.get("steps", ())),
+        steps=steps,
         conditions=tuple(_condition(c) for c in document.get("conditions", ())),
-        success=_detectors(document.get("success", {}).get("detectors", ())),
+        success=_detectors((document.get("success") or {}).get("detectors", ())),
     )
+
+
+def _reject_duplicate_step_ids(steps: tuple[Step, ...]) -> None:
+    """Two steps with one id is not a loud failure, which is why it is checked.
+
+    A run would work, address the first of them every time, and quietly never
+    perform the second. Steps are named so a record can say which one failed,
+    and that only means something while the names are unique.
+    """
+    counts = Counter(step.id for step in steps)
+    duplicates = sorted(step_id for step_id, count in counts.items() if count > 1)
+    if duplicates:
+        raise MalformedArtifact(f"duplicate step id(s) {duplicates}")
 
 
 def _contract(document: Mapping[str, Any]) -> Contract:
@@ -141,14 +158,12 @@ def _signal(document: Mapping[str, Any]) -> Signal:
     )
 
 
-def _rect(document: Mapping[str, Any]) -> Any:
-    from cua.domain.observation import Rect
-
+def _rect(document: Mapping[str, Any]) -> Rect:
     return Rect(
-        x=float(document["x"]),
-        y=float(document["y"]),
-        width=float(document["width"]),
-        height=float(document["height"]),
+        x=_number(document.get("x"), "bounds.x"),
+        y=_number(document.get("y"), "bounds.y"),
+        width=_number(document.get("width"), "bounds.width"),
+        height=_number(document.get("height"), "bounds.height"),
     )
 
 
@@ -169,8 +184,8 @@ def _recovery(document: Mapping[str, Any] | None) -> Recovery | None:
         return None
     return Recovery(
         action=_enum(RecoveryAction, _require(document, "action"), "recovery action"),
-        max_attempts=int(document.get("max_attempts", 2)),
-        wait_ms=int(document.get("wait_ms", 1000)),
+        max_attempts=_positive_int(document.get("max_attempts", 2), "max_attempts"),
+        wait_ms=_positive_int(document.get("wait_ms", 1000), "wait_ms"),
         target=_target(document.get("target")),
     )
 
@@ -185,10 +200,36 @@ def _detector(document: Mapping[str, Any]) -> Detector:
     unknown = sorted(set(fields) - known)
     if unknown:
         raise MalformedArtifact(f"detector has unknown field(s) {unknown}")
-    return Detector(
+    detector = Detector(
         kind=_enum(DetectorKind, _require(document, "kind"), "detector kind"),
         **{k: _optional_str(v) for k, v in fields.items()},
     )
+    if detector.kind is DetectorKind.FIELD_VALUE_EQUALS and detector.value is None:
+        # It would never hold, so a checkpoint carrying it could never pass.
+        raise MalformedArtifact("field_value_equals needs a value to compare against")
+    return detector
+
+
+def _positive_int(value: Any, label: str) -> int:
+    """A bound that is not a positive whole number is not a bound.
+
+    max_attempts of zero or a string would leave Recovery with a limit that
+    never stops a loop or blows up part way through one.
+    """
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise MalformedArtifact(f"{label} must be a whole number, not {value!r}") from None
+    if number < 1:
+        raise MalformedArtifact(f"{label} must be at least 1, not {number}")
+    return number
+
+
+def _number(value: Any, label: str) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise MalformedArtifact(f"{label} must be a number, not {value!r}") from None
 
 
 def _require(document: Mapping[str, Any], key: str) -> Any:

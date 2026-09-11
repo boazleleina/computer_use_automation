@@ -8,7 +8,7 @@ refuse it.
 
 import pytest
 
-from cua.adapters.scripted_surface import ActCall, ScriptedSurface
+from cua.adapters.scripted_surface import ActCall, ScriptedSurface, load_observation
 from cua.domain.actions import ActionType
 from cua.domain.capability import SignalKind
 from cua.domain.errors import SurfaceError
@@ -242,3 +242,33 @@ def test_close_is_safe_to_call_twice(member_detail):
     surface = ScriptedSurface([member_detail])
     surface.close()
     surface.close()
+
+
+def test_a_closed_surface_refuses_to_work(member_detail):
+    """Otherwise `_closed` is a flag nothing reads, and a run that kept driving
+    a released session would look fine here and fail against a browser."""
+    surface = ScriptedSurface([member_detail])
+    surface.close()
+
+    with pytest.raises(SurfaceError):
+        surface.observe()
+
+
+def test_a_fixture_that_will_not_parse_is_translated(tmp_path):
+    """This adapter's mechanism, so this adapter's problem. Letting a
+    JSONDecodeError out would make every caller handle a parser's error type."""
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(SurfaceError) as raised:
+        load_observation(broken)
+
+    assert "broken.json" in str(raised.value)
+
+
+def test_a_fixture_missing_a_field_is_translated(tmp_path):
+    partial = tmp_path / "partial.json"
+    partial.write_text('{"observation_id": "o1"}', encoding="utf-8")
+
+    with pytest.raises(SurfaceError):
+        load_observation(partial)

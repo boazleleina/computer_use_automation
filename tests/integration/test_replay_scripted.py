@@ -11,6 +11,7 @@ not change anything.
 
 from collections.abc import Sequence
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 import yaml
@@ -36,7 +37,7 @@ from cua.domain.outcomes import Outcome, Result
 from cua.domain.policy import DeniedControl, Policy
 from cua.domain.run import RECOVERIES_PER_STEP
 
-ARTIFACT = "tests/fixtures/member_lookup.handwritten.yaml"
+ARTIFACT = Path(__file__).resolve().parents[1] / "fixtures" / "member_lookup.handwritten.yaml"
 MEMBER_ID = "100045"
 
 POLICY = Policy(
@@ -462,14 +463,28 @@ def test_the_run_reports_where_it_got_to_and_what_it_expected(
 
 
 def test_no_model_is_reachable_from_the_replay_engine():
-    """Structural, not a promise. There is no Model in the engine's signature."""
-    import inspect
+    """Structural, not a promise.
 
-    from cua.app import replay
+    Read from the parsed import graph rather than the file's text. Searching
+    the source would fail on a comment that mentions the model and pass on an
+    import reached through another module, which is the opposite of useful.
+    """
+    import ast
+    from pathlib import Path as _Path
 
-    source = inspect.getsource(replay)
-    assert "ModelPort" not in source
-    assert "cua.ports.model" not in source
+    source = _Path("src/cua/app/replay.py")
+    if not source.exists():
+        source = _Path(__file__).resolve().parents[2] / "src" / "cua" / "app" / "replay.py"
+
+    imported: set[str] = set()
+    for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+
+    assert "cua.ports.model" not in imported
+    assert any(m.startswith("cua.ports.") for m in imported)  # it does use ports
 
 
 def test_a_read_only_capability_needs_no_approval(capability):

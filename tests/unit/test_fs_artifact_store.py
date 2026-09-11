@@ -12,7 +12,7 @@ import yaml
 
 from cua.adapters.errors import ConfigurationError
 from cua.adapters.fs_artifact_store import FilesystemArtifactStore
-from cua.domain.errors import ArtifactNotFound
+from cua.domain.errors import ArtifactNotFound, MalformedArtifact
 from cua.ports.artifact_store import ArtifactStore
 
 DOCUMENT = {"schema_version": "1.0", "contract": {"id": "lookup", "version": "1.0.0"}}
@@ -92,6 +92,39 @@ def test_a_file_that_is_not_a_mapping_is_not_an_artifact(store, tmp_path):
         store.load("lookup", "1.0.0")
 
 
+@pytest.mark.parametrize("name", ["../escaped", "a/b", "..", "Name", "with space"])
+def test_a_capability_name_that_is_not_a_name_is_refused(store, name):
+    """Both halves become a filename.
+
+    A separator or a traversal segment puts the file somewhere else entirely,
+    so they are checked before they are joined rather than after.
+    """
+    with pytest.raises(ConfigurationError):
+        store.save(name, "1.0.0", DOCUMENT)
+
+
+def test_nothing_is_written_outside_the_root(store, tmp_path):
+    with pytest.raises(ConfigurationError):
+        store.save("../escaped", "1.0.0", DOCUMENT)
+
+    assert not list(tmp_path.parent.glob("escaped*"))
+
+
+@pytest.mark.parametrize("version", ["../1.0.0", "1/0/0", "1.0.0/.."])
+def test_a_version_that_is_not_a_version_is_refused(store, version):
+    with pytest.raises(ConfigurationError):
+        store.save("lookup", version, DOCUMENT)
+
+
+def test_malformed_yaml_is_translated_before_it_escapes(store, tmp_path):
+    """A parser's exception type is not a domain error, and every caller above
+    this adapter handles only domain errors."""
+    (tmp_path / "lookup.v1.0.0.yaml").write_text("contract: [unclosed\n", encoding="utf-8")
+
+    with pytest.raises(MalformedArtifact):
+        store.load("lookup", "1.0.0")
+
+
 def test_the_store_satisfies_the_port(store):
     wire(store)
 
@@ -103,7 +136,8 @@ def test_the_handwritten_artifact_survives_a_round_trip(store):
     """
     from cua.domain.artifact import capability_from_document
 
-    with open("tests/fixtures/member_lookup.handwritten.yaml", encoding="utf-8") as handle:
+    artifact = Path(__file__).resolve().parents[1] / "fixtures" / "member_lookup.handwritten.yaml"
+    with open(artifact, encoding="utf-8") as handle:
         original = yaml.safe_load(handle)
 
     store.save("lookup_member_balance", "1.0.0", original)
