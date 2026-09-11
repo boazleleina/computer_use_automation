@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "computer-use-automation"
+version = "0.1.0"
+description = "Computer-use automation: discover flows, replay them deterministically."
+requires-python = ">=3.11"
+# Runtime dependencies belong to the edges, not the core. domain/ imports the
+# standard library only; these serve composition.py, which parses config.yaml
+# and .env into typed settings before wiring any adapter.
+dependencies = [
+    "pydantic>=2.7",              # typed config sections, imported directly
+    "pydantic-settings[yaml]>=2.2",  # YAML + .env sources; pulls pyyaml, python-dotenv
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "flask>=3.0",          # target_app only: the legacy fixture, not part of the system
+    "python-dotenv>=1.0",  # target_app only: reads operator credentials from .env
+]
+
+[project.scripts]
+cua = "cua.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]  # "." so tests can import the target_app fixture
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ANN"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src:."  # "." so the target_app fixture resolves too
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Tests are exempt from annotation rules (ruff exempts them too), but everything
+# else stays on. Without this, structural conformance of a fake to a Protocol —
+# the one thing only mypy can prove — would go unchecked.
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true

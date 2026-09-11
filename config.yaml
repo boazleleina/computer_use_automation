@@ -1,0 +1,83 @@
+# Defaults for a run. Secrets live in .env, never here — this file is committed.
+
+surface:
+  # Names the implementation, not a category. This file is read by the
+  # composition root, which is the one place allowed to know which adapters
+  # exist, so naming one here is its job rather than a leak.
+  kind: playwright                    # playwright | scripted
+  base_url: http://127.0.0.1:5000
+  headless: false
+  viewport: { width: 1280, height: 800 }
+
+model:
+  provider: anthropic
+  name: claude-sonnet-5
+  max_tokens: 4096
+  temperature: 0.0
+
+discovery:
+  # Bounds on the run loop, not parameters of the model. They hold whichever
+  # ModelPort implementation is wired in, including a recorded one, and replay
+  # never reads this block at all.
+  max_steps: 40                       # hard cap on actions in one run
+  stop_on_repeated_state: true        # the same screen twice means stuck
+  stop_on_policy_refusal: true        # a refusal ends the run, never a retry
+
+policy:
+  # Two independent layers, both always applied. Not a mode: an allowlist bounds
+  # where a run may go, a denial bounds what it may touch, and giving one up to
+  # get the other is what lets a one-click hazard through.
+
+  # Scope. Checked against Observation.url_pattern and Node.destination, so a
+  # link can be refused before it is followed rather than after.
+  allowed_origins:
+    - http://127.0.0.1:5000
+  allowed_routes:
+    - /login
+    - /search
+    - /members/{member_id}
+    - /members/{member_id}/subaccount/new
+    - /members/{member_id}/subaccount/review
+    - /members/{member_id}/subaccount/confirm
+  allowed_actions: [click, type, select, navigate, read]   # domain.actions.ActionType
+
+  # Landmines. Matched by role and accessible name, never by CSS: the domain
+  # holds no selectors, so a selector list here could not be evaluated.
+  # Sign Off is read_only by data effect and still ends the run — see
+  # domain.actions.Effect for why that is a separate axis.
+  denied_controls:
+    - { role: link, name: "Sign Off" }
+
+evidence:
+  dir: evidence                       # committed: the curated run records
+  capture_screenshots: true
+  capture_dom: true
+
+  # Redaction is driven by sensitivity declared on a capability's inputs and
+  # outputs, not by scanning recorded text. A scan cannot be shown correct:
+  # a pattern like "(?i)password" matches the word, which is the field label,
+  # while the value typed into it goes straight through. A declared type can be
+  # checked at compile time and tested once.
+  redaction:
+    # How EvidenceSink renders each declared class.
+    secret: drop                      # credentials, tokens, cookies
+    personal: mask                    # member numbers, names: last 4 retained
+    internal: record                  # routes, control names, timings
+
+    # Anything a capability failed to classify. Fails closed: a value nobody
+    # typed is dropped rather than published on the assumption it was harmless.
+    unclassified: drop
+
+    # Structural, evaluated on the control rather than on any text. A password
+    # field's value never enters an Observation, so there is nothing downstream
+    # for a pattern to miss and nothing in a screenshot or DOM capture either.
+    never_capture:
+      - password_inputs
+      - cookies
+      - authorization_headers
+
+timeout:
+  action_ms: 5000
+  model_ms: 60000
+  step_ms: 70000
+  run_ms: 900000
