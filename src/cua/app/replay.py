@@ -59,6 +59,14 @@ class ReplayCapability:
     operator: OperatorChannel | None = None
 
     def run(self, capability: Capability, inputs: Mapping[str, str], run_id: str) -> Result:
+        """Execute a capability and return its terminal result.
+
+        Actions are issued to the surface, and configured evidence and operator
+        channels are notified when applicable. Raises `MalformedArtifact` before
+        the first action when a required input is missing or a supplied value
+        violates its pattern. An incomplete read step raises the same error when
+        reached.
+        """
         state = _RunState(
             capability=capability,
             bound=_bind_inputs(capability, inputs),
@@ -141,6 +149,7 @@ class ReplayCapability:
     def _locate(
         self, state: "_RunState", step: Step, target: TargetSpec, observation: Observation
     ) -> NodeRef | Result:
+        """Resolve a target or return an intervention result when resolution fails."""
         resolution = resolve(target, observation, self._kinds())
 
         if isinstance(resolution, Resolved):
@@ -197,6 +206,7 @@ class ReplayCapability:
         return None
 
     def _perform(self, state: "_RunState", step: Step, subject: NodeRef | None) -> None:
+        """Perform a step, storing a read value in its declared output when needed."""
         if step.action_type is ActionType.READ:
             if subject is None or step.reads_into is None:
                 raise MalformedArtifact(f"step {step.id!r} reads but names no target or output")
@@ -243,6 +253,7 @@ class ReplayCapability:
         return found.ref if isinstance(found, Resolved) else None
 
     def _stop(self, state: "_RunState", step: Step) -> Result:
+        """Turn a terminal screen classification into the result that stops the run."""
         classification = state.classification
         if classification.outcome is not Outcome.INTERVENTION_REQUIRED:
             state.run = state.run.fail(classification.detail)
@@ -299,6 +310,7 @@ class ReplayCapability:
         expected: str | None = None,
         observed: str | None = None,
     ) -> Result:
+        """Build a result and record it when an evidence sink is configured."""
         result = Result(
             run_id=state.run.run_id,
             capability=state.run.capability,
@@ -316,6 +328,7 @@ class ReplayCapability:
         return result
 
     def _record(self, state: "_RunState", result: Result) -> None:
+        """Append result metadata when an evidence sink is configured."""
         if self.evidence is None:
             return
         self.evidence.append(
@@ -336,6 +349,7 @@ class ReplayCapability:
         )
 
     def _kinds(self) -> frozenset[SignalKind]:
+        """Return the target signal kinds supported by the active surface."""
         return self.surface.supported_signal_kinds()
 
 
@@ -355,6 +369,7 @@ class _RunState:
     resolved_via: SignalKind | None = None
 
     def condition(self) -> Condition | None:
+        """Return the condition matched by the latest classification, if any."""
         name = self.classification.condition_name
         if name is None:
             return None
@@ -427,6 +442,7 @@ def _describe(detector: Detector) -> str:
 
 
 def _transform(capability: Capability, output_name: str, value: str) -> str:
+    """Apply the transform declared for an output, if the transform is supported."""
     spec = next((o for o in capability.contract.outputs if o.name == output_name), None)
     if spec is not None and spec.transform == "strip_whitespace":
         return value.strip()

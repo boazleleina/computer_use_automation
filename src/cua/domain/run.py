@@ -93,6 +93,7 @@ class Run:
 
     @classmethod
     def start(cls, run_id: str, capability: str, version: str) -> "Run":
+        """Create an automation-owned run at its first step."""
         return cls(run_id=run_id, capability=capability, version=version)
 
     @property

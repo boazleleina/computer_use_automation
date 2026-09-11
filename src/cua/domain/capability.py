@@ -177,6 +177,7 @@ class Contract:
 
     @property
     def approved(self) -> bool:
+        """Whether this contract version has been approved."""
         return self.approval is Approval.APPROVED
 
     def __post_init__(self) -> None:

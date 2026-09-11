@@ -82,6 +82,7 @@ class ScriptedSurface:
         screens: Sequence[Observation],
         supported_signal_kinds: frozenset[SignalKind] = PORTABLE_SIGNAL_KINDS,
     ) -> None:
+        """Initialize a nonempty script, or raise `ValueError` if it has no screens."""
         if not screens:
             raise ValueError("a scripted surface needs at least one screen")
         self._screens = tuple(screens)
@@ -91,11 +92,12 @@ class ScriptedSurface:
         self.acted: list[ActCall] = []
 
     def open(self, url: str) -> Observation:
-        """Attach to the first screen. The url is recorded and otherwise unused."""
+        """Record a navigation to `url` and return the current scripted screen."""
         self.acted.append(ActCall(ActionType.NAVIGATE, None, url))
         return self._screens[self._index]
 
     def observe(self) -> Observation:
+        """Return the current screen without advancing the script."""
         return self._screens[self._index]
 
     def act(
@@ -104,6 +106,7 @@ class ScriptedSurface:
         node_ref: NodeRef | None,
         value: str | None = None,
     ) -> None:
+        """Record an action and advance, rejecting reads and stale node references."""
         if action_type is ActionType.READ:
             raise SurfaceError("read is not an action; call read()")
         if node_ref is not None:
@@ -112,7 +115,11 @@ class ScriptedSurface:
         self._advance()
 
     def read(self, node_ref: NodeRef) -> str:
-        """Read a control. Not recorded in `acted`, and does not advance."""
+        """Read a current control without recording an action or advancing the script.
+
+        Raises `SurfaceError` when the reference is stale or does not identify
+        a node on the current screen.
+        """
         self._reject_stale(node_ref)
         node = self.observe().node(node_ref)
         if node is None:
@@ -124,9 +131,11 @@ class ScriptedSurface:
         return f"scripted:{self.observe().observation_id}".encode()
 
     def supported_signal_kinds(self) -> frozenset[SignalKind]:
+        """Return the target signal kinds this scripted surface can evaluate."""
         return self._supported
 
     def close(self) -> None:
+        """Mark the scripted session closed; repeated calls are harmless."""
         self._closed = True
 
     def _advance(self) -> None:

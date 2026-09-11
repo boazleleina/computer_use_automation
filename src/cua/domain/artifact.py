@@ -45,7 +45,12 @@ DETECTOR_KEY_ALIASES = {"pattern": "url_pattern"}
 
 
 def capability_from_document(document: Mapping[str, Any]) -> Capability:
-    """Parse an artifact document, or say precisely what is wrong with it."""
+    """Build a capability from an artifact document.
+
+    Raises `MalformedArtifact` for missing required fields, unknown enum
+    values, or unknown detector fields. Capability safety rules may also raise
+    `UnsafeCapability` during construction.
+    """
     return Capability(
         contract=_contract(_require(document, "contract")),
         steps=tuple(_step(s) for s in document.get("steps", ())),
@@ -180,6 +185,7 @@ def _detectors(documents: Sequence[Mapping[str, Any]]) -> tuple[Detector, ...]:
 
 
 def _detector(document: Mapping[str, Any]) -> Detector:
+    """Build a detector, rejecting fields outside the detector vocabulary."""
     fields = {DETECTOR_KEY_ALIASES.get(k, k): v for k, v in document.items() if k != "kind"}
     known = set(Detector.__dataclass_fields__) - {"kind"}
     unknown = sorted(set(fields) - known)
@@ -192,6 +198,7 @@ def _detector(document: Mapping[str, Any]) -> Detector:
 
 
 def _require(document: Mapping[str, Any], key: str) -> Any:
+    """Return a required document value or raise `MalformedArtifact`."""
     if key not in document:
         raise MalformedArtifact(f"missing required key {key!r}")
     return document[key]

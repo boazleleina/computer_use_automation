@@ -14,12 +14,15 @@ class RealClock:
     """Wall-clock time and real waiting."""
 
     def now(self) -> datetime:
+        """Return the current timezone-aware UTC wall-clock time."""
         return datetime.now(UTC)
 
     def monotonic_ms(self) -> int:
+        """Return monotonic milliseconds from an arbitrary origin."""
         return int(time.monotonic() * 1000)
 
     def sleep(self, ms: int) -> None:
+        """Block for the requested number of milliseconds."""
         time.sleep(ms / 1000)
 
 
@@ -33,17 +36,21 @@ class FakeClock:
     """
 
     def __init__(self, start: datetime | None = None) -> None:
+        """Initialize simulated time, using a fixed UTC baseline by default."""
         self._now = start or datetime(2026, 1, 1, tzinfo=UTC)
         self._elapsed_ms = 0
         self.slept: list[int] = []
 
     def now(self) -> datetime:
+        """Return the current simulated wall-clock time."""
         return self._now
 
     def monotonic_ms(self) -> int:
+        """Return simulated milliseconds advanced since initialization."""
         return self._elapsed_ms
 
     def sleep(self, ms: int) -> None:
+        """Record a delay and advance simulated time without blocking."""
         self.slept.append(ms)
         self.advance(ms)
 
@@ -54,4 +61,5 @@ class FakeClock:
 
     @property
     def total_slept_ms(self) -> int:
+        """Return the sum of delays requested through `sleep`."""
         return sum(self.slept)
