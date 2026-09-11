@@ -50,7 +50,10 @@ def target_app() -> Iterator[str]:
     anything on the machine may take it.
     """
     os.environ.setdefault("TARGET_APP_USER", "tmiller")
-    os.environ.setdefault("TARGET_APP_PASSWORD", "live-test-password")
+    # setdefault, so a real .env still wins. The literal is only a floor, and
+    # it guards a server that lives for the length of this module on a port the
+    # OS picked, so it is named to read as inert to anyone grepping for one.
+    os.environ.setdefault("TARGET_APP_PASSWORD", "not-a-real-password")
 
     from target_app.app import create_app
 
