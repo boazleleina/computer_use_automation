@@ -171,6 +171,18 @@ def test_navigate_addresses_a_route_not_a_control(search_page):
     assert surface.acted == []
 
 
+def test_navigating_with_no_route_is_refused(search_page):
+    """A navigate carries its destination in the value. Without one there is
+    nothing to go to, and recording it would claim the run went somewhere."""
+    surface = ScriptedSurface([search_page])
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.NAVIGATE, None, None)
+
+    assert surface.acted == []
+    assert surface.observe() is search_page
+
+
 def test_acting_on_a_ref_that_names_nothing_is_refused(search_page):
     """The screen is right and the ref is not. A browser raises; so does this.
 

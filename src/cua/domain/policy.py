@@ -267,6 +267,16 @@ class Policy:
                 reason=f"action {action_type.value!r} is not in the allowlist",
             )
 
+        if action_type is ActionType.NAVIGATE and route is None:
+            # Navigation with nowhere to go skips every guard this method has:
+            # there is no control to match against the denied list, no
+            # destination to check, and no route to compare. A check that
+            # cannot be performed is not a check that passed.
+            return Denied(
+                rule=PolicyRule.ROUTE_NOT_ALLOWED,
+                reason="navigate was given no route, so there is nothing to check it against",
+            )
+
         if node is not None:
             denial = self._check_control(node)
             if denial is not None:

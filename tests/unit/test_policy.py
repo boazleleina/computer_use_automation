@@ -159,6 +159,29 @@ def test_navigating_off_the_allowed_origin_is_refused():
     assert verdict.rule is PolicyRule.ORIGIN_NOT_ALLOWED
 
 
+def test_navigating_with_no_route_at_all_is_refused():
+    """Fails closed.
+
+    Navigation with nowhere to go skips every guard evaluate has: no control to
+    match against the denied list, no destination, no route to compare. A step
+    whose route template went missing would otherwise pass the one layer whose
+    job is bounding where a run may go.
+    """
+    verdict = NAVIGATING_POLICY.evaluate(ActionType.NAVIGATE, route=None)
+
+    assert isinstance(verdict, Denied)
+    assert verdict.rule is PolicyRule.ROUTE_NOT_ALLOWED
+    assert "nothing to check it against" in verdict.reason
+
+
+def test_an_action_that_is_not_navigation_needs_no_route():
+    """The rule is about navigation, not about caution generally. A click is
+    checked through the control it names."""
+    verdict = POLICY.evaluate(ActionType.CLICK, node=node("button", "Find"), route=None)
+
+    assert isinstance(verdict, Allowed)
+
+
 def test_navigating_to_an_undeclared_route_on_the_right_origin_is_refused():
     verdict = NAVIGATING_POLICY.evaluate(ActionType.NAVIGATE, route="/admin/users")
     assert isinstance(verdict, Denied)

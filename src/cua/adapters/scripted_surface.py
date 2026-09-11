@@ -116,6 +116,8 @@ class ScriptedSurface:
         if action_type is ActionType.NAVIGATE:
             if node_ref is not None:
                 raise SurfaceError("navigate addresses a route, not a control")
+            if value is None:
+                raise SurfaceError("navigate needs a route to go to")
         else:
             if node_ref is None:
                 raise SurfaceError(f"{action_type.value} needs a control to act on")
