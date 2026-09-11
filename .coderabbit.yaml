@@ -1,0 +1,80 @@
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+language: en-GB
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  review_status: true
+  poem: false
+
+  # Comment, do not gate. CI decides whether a branch is mergeable; a review
+  # bot holding the merge button on a judgement call is not the same thing.
+  request_changes_workflow: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    # Captured accessibility trees. Large, generated, and reviewed by reading
+    # the application rather than the diff.
+    - "!tests/fixtures/observations/*.json"
+
+  path_instructions:
+    - path: "src/cua/domain/**"
+      instructions: >
+        Pure domain. It must import the standard library only: no driver, no
+        SDK, no validation library, and nothing from adapters. Flag any third
+        party import, any I/O, any wall-clock or filesystem access, and any
+        type named after a technology.
+
+        Watch for identifiers reaching a place they should not. Observation
+        carries url_pattern rather than a URL and Node.destination is a route
+        pattern, both because member numbers must not enter an Observation and
+        therefore must not enter evidence.
+
+        Resolution must refuse rather than guess. Flag anything that picks the
+        first of several matches, or that returns a node reference alongside an
+        ambiguous result.
+
+    - path: "src/cua/ports/**"
+      instructions: >
+        Signatures only. No behaviour, no defaults that do work, no I/O. Ports
+        are phrased in domain types: a vendor type in a signature makes every
+        caller of that port depend on that technology. Flag any import outside
+        the standard library and cua.domain.
+
+    - path: "src/cua/adapters/**"
+      instructions: >
+        The only layer that may know about a specific technology. Vendor
+        exceptions must be translated into domain errors here rather than
+        escaping upward. Native handles must not cross the port boundary; a
+        NodeRef is opaque and the map from ref to element stays private.
+
+    - path: "src/cua/composition.py"
+      instructions: >
+        The only module permitted to import adapters. Flag anything here that
+        makes a decision rather than wiring one.
+
+    - path: "target_app/**"
+      instructions: >
+        A deliberately hostile fixture, not production code. Do not suggest
+        adding test ids, ARIA attributes, semantic layout, or modern CSS: the
+        nested tables and generated ctl00_cph_* ids are the point. Real
+        <label for> bindings and <th scope="row"> associations are intentional
+        and must stay.
+
+        Do flag anything that reveals server side fault state to the browser,
+        any credential in a committed file, and any query parameter that would
+        let a run detect that a fault was armed.
+
+    - path: "tests/**"
+      instructions: >
+        Tests are the specification for the domain. Flag a test that asserts an
+        implementation detail rather than a behaviour, and flag a fake that
+        diverges from the port it stands in for.
+
+        Do not suggest loosening an assertion to make a test pass.
+
+chat:
+  auto_reply: true
