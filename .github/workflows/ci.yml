@@ -28,6 +28,13 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
+      # The package alone is enough for mypy, which reads playwright's own
+      # types. Running the live suite needs the browser binary as well, and
+      # without it those tests error on launch rather than skipping: the
+      # importorskip in the module only proves the library is importable.
+      - name: Install the browser the live surface drives
+        run: playwright install --with-deps chromium
+
       - name: Lint
         run: ruff check .
 

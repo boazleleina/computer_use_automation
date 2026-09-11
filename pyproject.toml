@@ -24,6 +24,7 @@ dev = [
     "flask>=3.0",          # target_app only: the legacy fixture, not part of the system
     "python-dotenv>=1.0",  # target_app only: reads operator credentials from .env
     "types-PyYAML>=6.0",   # stubs for the YAML reads in adapters, tests and scripts
+    "playwright>=1.45",    # the live surface; ships its own types, so mypy needs it here
 ]
 
 [project.scripts]
