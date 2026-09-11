@@ -9,7 +9,8 @@ nothing about how many times the engine looks at each one, because looking does
 not change anything.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
 import pytest
 import yaml
@@ -19,7 +20,8 @@ from cua.adapters.scripted_surface import ScriptedSurface
 from cua.app.replay import ReplayCapability
 from cua.domain.actions import ActionType, Effect
 from cua.domain.artifact import capability_from_document
-from cua.domain.capability import Capability, SignalKind
+from cua.domain.capability import Capability, Confidence, Signal, SignalKind, Step, TargetSpec
+from cua.domain.conditions import Detector, DetectorKind, Recovery, RecoveryAction
 from cua.domain.errors import MalformedArtifact
 from cua.domain.observation import Observation
 from cua.domain.outcomes import Outcome, Result
@@ -35,6 +37,37 @@ POLICY = Policy(
     allowed_actions=frozenset({ActionType.CLICK, ActionType.TYPE, ActionType.READ}),
     denied_controls=(DeniedControl(role="link", name="Sign Off"),),
 )
+
+
+class RecordingEvidence:
+    def __init__(self) -> None:
+        self.events: list[tuple[str, Mapping[str, object]]] = []
+
+    def append(self, run_id: str, event: Mapping[str, object]) -> None:
+        self.events.append((run_id, event))
+
+    def attach(self, run_id: str, name: str, payload: bytes) -> str:
+        return f"memory://{run_id}/{name}"
+
+    def close(self) -> None:
+        pass
+
+
+class RecordingOperator:
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str, Observation]] = []
+
+    def request_intervention(
+        self,
+        run_id: str,
+        reason: str,
+        observation: Observation,
+        screenshot_ref: str | None = None,
+    ) -> None:
+        self.requests.append((run_id, reason, observation))
+
+    def await_release(self, run_id: str) -> None:
+        pass
 
 
 @pytest.fixture
@@ -212,6 +245,137 @@ def test_a_missing_required_input_is_refused(capability, search_page):
     assert surface.acted == []
 
 
+def test_a_wait_recovery_uses_the_declared_delay_and_stops_at_its_bound(
+    capability, search_page, search_page_filled, interstitial
+):
+    clock = FakeClock()
+    waiting_conditions = tuple(
+        replace(
+            condition,
+            recovery=Recovery(action=RecoveryAction.WAIT, max_attempts=2, wait_ms=125),
+        )
+        if condition.name == "maintenance_interstitial"
+        else condition
+        for condition in capability.conditions
+    )
+    waiting = replace(capability, conditions=waiting_conditions)
+    surface = ScriptedSurface([search_page, search_page_filled, interstitial])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock)
+
+    result = engine.run(waiting, {"member_id": MEMBER_ID}, run_id="run_wait")
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.condition_name == "maintenance_interstitial"
+    assert clock.slept == [125, 125]
+    assert clock.total_slept_ms == 250
+
+
+def test_ambiguous_target_escalates_before_any_action(capability, search_page):
+    ambiguous = replace(
+        capability,
+        steps=(
+            Step(
+                id="choose_search",
+                action_type=ActionType.CLICK,
+                target=TargetSpec(
+                    intent="one of the Search buttons",
+                    rationale="exercise ambiguity handling",
+                    signals=(
+                        Signal(
+                            kind=SignalKind.ROLE_NAME,
+                            confidence=Confidence.HIGH,
+                            role="button",
+                            name="Search",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        success=(),
+    )
+    surface = ScriptedSurface([search_page])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=FakeClock())
+
+    result = engine.run(ambiguous, {"member_id": MEMBER_ID}, run_id="run_ambiguous")
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.step_id == "choose_search"
+    assert result.observed and "matched" in result.observed
+    assert surface.acted == []
+
+
+def test_navigation_binds_the_route_and_records_a_targetless_action(capability, search_page):
+    navigating = replace(
+        capability,
+        steps=(Step(id="open_search", action_type=ActionType.NAVIGATE, value="/search"),),
+        success=(Detector(kind=DetectorKind.URL_PATTERN, url_pattern="/search"),),
+    )
+    navigation_policy = Policy(
+        allowed_origins=POLICY.allowed_origins,
+        allowed_routes=POLICY.allowed_routes,
+        allowed_actions=frozenset({ActionType.NAVIGATE}),
+        denied_controls=(),
+    )
+    surface = ScriptedSurface([search_page, search_page])
+    engine = ReplayCapability(surface=surface, policy=navigation_policy, clock=FakeClock())
+
+    result = engine.run(navigating, {"member_id": MEMBER_ID}, run_id="run_navigation")
+
+    assert result.outcome is Outcome.SUCCESS
+    assert len(surface.acted) == 1
+    assert surface.acted[0].action_type is ActionType.NAVIGATE
+    assert surface.acted[0].node_ref is None
+    assert surface.acted[0].value == "/search"
+
+
+def test_disallowed_navigation_never_reaches_the_surface(capability, search_page):
+    navigating = replace(
+        capability,
+        steps=(Step(id="open_admin", action_type=ActionType.NAVIGATE, value="/admin"),),
+        success=(),
+    )
+    navigation_policy = Policy(
+        allowed_origins=POLICY.allowed_origins,
+        allowed_routes=POLICY.allowed_routes,
+        allowed_actions=frozenset({ActionType.NAVIGATE}),
+        denied_controls=(),
+    )
+    surface = ScriptedSurface([search_page])
+    engine = ReplayCapability(surface=surface, policy=navigation_policy, clock=FakeClock())
+
+    result = engine.run(navigating, {"member_id": MEMBER_ID}, run_id="run_refused")
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.step_id == "open_admin"
+    assert result.observed == "route_not_allowed"
+    assert surface.acted == []
+
+
+def test_checkpoint_failure_reports_the_step_and_expected_value(
+    capability, search_page, member_detail
+):
+    result, surface = run(capability, [search_page, member_detail])
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.step_id == "enter_member_number"
+    assert result.expected and MEMBER_ID in result.expected
+    assert len(surface.acted) == 1
+
+
+def test_output_transform_is_applied_to_the_value_read_from_the_surface(
+    capability, search_page, search_page_filled, member_detail
+):
+    nodes = list(member_detail.nodes)
+    header_index = next(i for i, node in enumerate(nodes) if node.name == "Savings Balance")
+    nodes[header_index + 1] = replace(nodes[header_index + 1], name="  4820.55\n")
+    padded_detail = replace(member_detail, nodes=tuple(nodes))
+
+    result, _ = run(capability, [search_page, search_page_filled, padded_detail])
+
+    assert result.outcome is Outcome.SUCCESS
+    assert result.outputs["savings_balance"] == "4820.55"
+
+
 # --------------------------------------------------------------- the evidence
 
 
@@ -225,6 +389,42 @@ def test_the_run_reports_where_it_got_to_and_what_it_expected(
     assert result.detail
     assert result.capability == "lookup_member_balance"
     assert result.version == "1.0.0"
+
+
+def test_success_writes_a_deterministic_terminal_evidence_record(
+    capability, search_page, search_page_filled, member_detail
+):
+    evidence = RecordingEvidence()
+    clock = FakeClock()
+    surface = ScriptedSurface([search_page, search_page_filled, member_detail])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock, evidence=evidence)
+
+    result = engine.run(capability, {"member_id": MEMBER_ID}, run_id="run_evidence")
+
+    assert result.outcome is Outcome.SUCCESS
+    assert len(evidence.events) == 1
+    run_id, event = evidence.events[0]
+    assert run_id == "run_evidence"
+    assert event["outcome"] == "success"
+    assert event["run_state"] == "succeeded"
+    assert event["at"] == "2026-01-01T00:00:00+00:00"
+
+
+def test_session_expiry_notifies_the_operator_with_the_current_observation(
+    capability, search_page, search_page_filled, session_expired
+):
+    operator = RecordingOperator()
+    surface = ScriptedSurface([search_page, search_page_filled, session_expired])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=FakeClock(), operator=operator)
+
+    result = engine.run(capability, {"member_id": MEMBER_ID}, run_id="run_operator")
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert len(operator.requests) == 1
+    run_id, reason, observation = operator.requests[0]
+    assert run_id == "run_operator"
+    assert reason == result.detail
+    assert observation.observation_id == session_expired.observation_id
 
 
 def test_no_model_is_reachable_from_the_replay_engine():

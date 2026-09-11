@@ -6,6 +6,8 @@ that a handle to a replaced screen is refused here exactly as a browser would
 refuse it.
 """
 
+from datetime import datetime
+
 import pytest
 
 from cua.adapters.scripted_surface import ActCall, ScriptedSurface
@@ -187,3 +189,31 @@ def test_close_is_safe_to_call_twice(member_detail):
     surface = ScriptedSurface([member_detail])
     surface.close()
     surface.close()
+
+
+def test_open_records_navigation_without_skipping_the_first_screen(search_page, member_detail):
+    surface = ScriptedSurface([search_page, member_detail])
+
+    opened = surface.open("http://127.0.0.1:5000/search")
+
+    assert opened is search_page
+    assert surface.observe() is search_page
+    assert surface.acted == [
+        ActCall(ActionType.NAVIGATE, None, "http://127.0.0.1:5000/search")
+    ]
+
+
+def test_surface_returns_exactly_the_signal_kinds_it_was_configured_for(search_page):
+    supported = frozenset({SignalKind.ROLE_NAME, SignalKind.LABEL})
+    surface = ScriptedSurface([search_page], supported_signal_kinds=supported)
+
+    assert surface.supported_signal_kinds() == supported
+
+
+def test_loaded_observation_preserves_route_time_and_link_destination(search_page):
+    sign_off = find(search_page, "link", "Sign Off")
+
+    assert search_page.url_pattern == "/search"
+    assert isinstance(search_page.captured_at, datetime)
+    assert search_page.captured_at.tzinfo is not None
+    assert sign_off.destination == "/logout"

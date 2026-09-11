@@ -217,3 +217,40 @@ def test_text_matching_ignores_case(not_found):
         detail="the search returned no member",
     )
     assert classify(not_found, (shouty,)).outcome is Outcome.BUSINESS_OUTCOME
+
+
+def test_text_absent_detects_when_a_banner_has_gone(not_found):
+    gone = Detector(kind=DetectorKind.TEXT_ABSENT, text="scheduled maintenance")
+    present = Detector(kind=DetectorKind.TEXT_ABSENT, text="No member matches")
+
+    assert gone.holds(not_found)
+    assert not present.holds(not_found)
+
+
+def test_title_detector_requires_an_exact_title(member_detail):
+    exact = Detector(kind=DetectorKind.TITLE_IS, title=member_detail.page_title)
+    different_case = Detector(kind=DetectorKind.TITLE_IS, title=member_detail.page_title.upper())
+
+    assert exact.holds(member_detail)
+    assert not different_case.holds(member_detail)
+
+
+def test_field_value_detector_is_scoped_to_the_step_subject(search_page_filled):
+    member_number = next(node for node in search_page_filled.nodes if node.name == "Member Number")
+    detector = Detector(kind=DetectorKind.FIELD_VALUE_EQUALS, value="100045")
+
+    assert detector.holds(search_page_filled, member_number.ref)
+    assert not detector.holds(search_page_filled)
+
+    other_field = next(node for node in search_page_filled.nodes if node.name == "From Date")
+    assert not detector.holds(search_page_filled, other_field.ref)
+
+
+def test_detector_missing_its_required_comparison_value_fails_closed(member_detail):
+    detectors = (
+        Detector(kind=DetectorKind.TEXT_PRESENT),
+        Detector(kind=DetectorKind.TEXT_ABSENT),
+        Detector(kind=DetectorKind.FIELD_VALUE_EQUALS),
+    )
+
+    assert not any(detector.holds(member_detail) for detector in detectors)
