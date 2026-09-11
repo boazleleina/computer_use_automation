@@ -37,6 +37,12 @@ from cua.ports.surface import Surface
 
 PLACEHOLDER = re.compile(r"\{\{\s*inputs\.([a-zA-Z0-9_]+)\s*\}\}")
 
+# Anything shaped like a placeholder, whether or not it is a valid one. A
+# template is checked against both: `{{ inputs.member-id }}` matches this and
+# not PLACEHOLDER, and without the wider pattern it would survive substitution
+# untouched and be typed into the application exactly as written.
+PLACEHOLDER_SHAPED = re.compile(r"\{\{[^}]*\}\}")
+
 # A detector may say `target_ref: self`, meaning the control this step acted on.
 SELF_REF = "self"
 
@@ -257,6 +263,10 @@ class ReplayCapability:
     def _locate(
         self, state: "_RunState", step: Step, target: TargetSpec, observation: Observation
     ) -> NodeRef | Result:
+        # A control can be named after the data it carries. The link to a
+        # member is named with that member's number, so the spec describing it
+        # has to be bound to this run before it can match anything.
+        target = _fill_target(target, state.bound)
         resolution = resolve(target, observation, self._kinds())
 
         if isinstance(resolution, Resolved):
@@ -356,7 +366,7 @@ class ReplayCapability:
         if not step.checkpoint:
             return None
 
-        subject = self._subject_for(step, after)
+        subject = self._subject_for(state, step, after)
 
         for detector in step.checkpoint:
             bound = _fill_detector(detector, state.bound)
@@ -378,7 +388,7 @@ class ReplayCapability:
         self._emit(state, "checkpoint", step=step.id, held=True)
         return None
 
-    def _subject_for(self, step: Step, after: Observation) -> NodeRef | None:
+    def _subject_for(self, state: "_RunState", step: Step, after: Observation) -> NodeRef | None:
         """Re-resolve the step's own target against the screen being checked.
 
         `target_ref: self` means the control this step acted on. The ref from
@@ -387,7 +397,7 @@ class ReplayCapability:
         """
         if not any(d.target_ref == SELF_REF for d in step.checkpoint) or step.target is None:
             return None
-        found = resolve(step.target, after, self._kinds())
+        found = resolve(_fill_target(step.target, state.bound), after, self._kinds())
         return found.ref if isinstance(found, Resolved) else None
 
     # ---- endings -----------------------------------------------------------
@@ -624,6 +634,17 @@ def _fill(template: str | None, bound: Mapping[str, str]) -> str | None:
     if template is None:
         return None
 
+    malformed = sorted(
+        found.group(0)
+        for found in PLACEHOLDER_SHAPED.finditer(template)
+        if not PLACEHOLDER.fullmatch(found.group(0))
+    )
+    if malformed:
+        raise MalformedArtifact(
+            f"template contains placeholder(s) {malformed} that are not "
+            "of the form {{ inputs.name }}"
+        )
+
     unknown = sorted({m.group(1) for m in PLACEHOLDER.finditer(template)} - set(bound))
     if unknown:
         raise MalformedArtifact(
@@ -632,14 +653,39 @@ def _fill(template: str | None, bound: Mapping[str, str]) -> str | None:
     return PLACEHOLDER.sub(lambda match: bound[match.group(1)], template)
 
 
+def _fill_target(target: TargetSpec, bound: Mapping[str, str]) -> TargetSpec:
+    """A spec with its placeholders bound, so it describes this run's controls.
+
+    Only the name is filled. A role is a kind of control and never varies with
+    the data, and a relation describes structure; binding either would mean the
+    artifact was describing something other than the application.
+    """
+    if not any(PLACEHOLDER.search(signal.name or "") for signal in target.signals):
+        return target
+    return replace(
+        target,
+        signals=tuple(
+            replace(signal, name=_fill(signal.name, bound)) for signal in target.signals
+        ),
+    )
+
+
 def _fill_detector(detector: Detector, bound: Mapping[str, str]) -> Detector:
     """A detector with its placeholders bound, so it compares real values.
 
-    url_pattern is left alone: a route pattern keeps its placeholder, because
+    Name and text as well as value: a control can be named after the data it
+    carries, and the link to a member is named with that member's number.
+
+    url_pattern is left alone. A route keeps its placeholder, because
     identifiers must not enter an Observation and therefore never appear in one
     to compare against.
     """
-    return replace(detector, value=_fill(detector.value, bound))
+    return replace(
+        detector,
+        value=_fill(detector.value, bound),
+        name=_fill(detector.name, bound),
+        text=_fill(detector.text, bound),
+    )
 
 
 def _describe(detector: Detector) -> str:

@@ -111,6 +111,30 @@ steps:
           brittle: true
     checkpoint:
       detectors:
+        - kind: node_present
+          role: link
+          name: "{{ inputs.member_id }}"
+      # Submitting the search does not open the member. It returns a result
+      # grid on the same route, and the row is a link. Expecting the member
+      # page here is what the scripted run asserted and the application never
+      # did.
+
+  - id: open_member
+    action: click
+    target:
+      intent: The member number link in the result grid
+      rationale: >
+        The grid row is a link whose accessible name is the member number
+        itself, so the target has to be bound to this run before it describes
+        anything. Role and name still do the work; what varies is the data the
+        control is named after, not how it is found.
+      signals:
+        - kind: role_name
+          role: link
+          name: "{{ inputs.member_id }}"
+          confidence: high
+    checkpoint:
+      detectors:
         - kind: url_pattern_is
           pattern: /members/{member_id}
         - kind: node_present

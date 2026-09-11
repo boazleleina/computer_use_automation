@@ -254,6 +254,22 @@ def test_a_closed_surface_refuses_to_work(member_detail):
         surface.observe()
 
 
+def test_a_closed_surface_refuses_to_act(member_detail):
+    """act is the one entry point that does not reach the guard through observe.
+
+    Without its own check a closed surface still recorded the action and still
+    advanced the script, so a run driving a released session read as a run that
+    worked.
+    """
+    surface = ScriptedSurface([member_detail])
+    surface.close()
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.NAVIGATE, None, "/search")
+
+    assert surface.acted == []
+
+
 def test_a_fixture_that_will_not_parse_is_translated(tmp_path):
     """This adapter's mechanism, so this adapter's problem. Letting a
     JSONDecodeError out would make every caller handle a parser's error type."""

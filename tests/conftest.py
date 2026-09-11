@@ -37,6 +37,24 @@ def search_page_filled_unknown() -> Observation:
 
 
 @pytest.fixture
+def search_results() -> Observation:
+    """The dashboard after a successful search: the row is a link to the member."""
+    return load_observation("search_results")
+
+
+@pytest.fixture
+def search_page_filled_restricted() -> Observation:
+    """The dashboard with a restricted member's number typed in."""
+    return load_observation("search_page_filled_restricted")
+
+
+@pytest.fixture
+def search_results_restricted() -> Observation:
+    """The result grid for a member the operator may not open."""
+    return load_observation("search_results_restricted")
+
+
+@pytest.fixture
 def member_detail() -> Observation:
     """A member page: thirteen rowheaders, each followed by its value cell."""
     return load_observation("member_detail")
