@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, assert_never
 
-from cua.domain.observation import NodeRef, Observation
+from cua.domain.observation import NodeRef, Observation, readable_value
 from cua.domain.outcomes import Outcome
 
 if TYPE_CHECKING:
@@ -90,8 +90,11 @@ class Detector:
         if self.kind is DetectorKind.FIELD_VALUE_EQUALS:
             if subject is None or self.value is None:
                 return False
-            node = next((n for n in observation.nodes if n.ref == subject), None)
-            return node is not None and node.text == self.value
+            node = observation.node(subject)
+            # readable_value, not node.text: an input keeps its value in one
+            # field and static content in another, and a detector that picked
+            # one of them would answer differently from the surface that read it.
+            return node is not None and readable_value(node) == self.value
 
         # Exhaustive over DetectorKind. A new kind that nobody implemented is a
         # type error, not a detector that silently never holds — which would

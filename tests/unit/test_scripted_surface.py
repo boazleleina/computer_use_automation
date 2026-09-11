@@ -8,7 +8,7 @@ refuse it.
 
 import pytest
 
-from cua.adapters.scripted_surface import ActCall, ScriptedSurface
+from cua.adapters.scripted_surface import ActCall, ScriptedSurface, load_observation
 from cua.domain.actions import ActionType
 from cua.domain.capability import SignalKind
 from cua.domain.errors import SurfaceError
@@ -144,6 +144,61 @@ def test_nothing_acted_is_how_a_refusal_is_proven(search_page):
     assert surface.acted == []
 
 
+@pytest.mark.parametrize("action", [ActionType.CLICK, ActionType.TYPE, ActionType.SELECT])
+def test_an_action_on_no_control_is_refused(search_page, action):
+    """Every action but navigate is done to something.
+
+    Accepting None would record an action that could not have happened and move
+    the script on underneath it.
+    """
+    surface = ScriptedSurface([search_page])
+
+    with pytest.raises(SurfaceError):
+        surface.act(action, None)
+
+    assert surface.acted == []
+
+
+def test_navigate_addresses_a_route_not_a_control(search_page):
+    """The route travels in the value. A ref here is a malformed call, not a
+    hint to be ignored."""
+    surface = ScriptedSurface([search_page])
+    button = find(search_page, "button", "Find")
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.NAVIGATE, button.ref, "/search")
+
+    assert surface.acted == []
+
+
+def test_navigating_with_no_route_is_refused(search_page):
+    """A navigate carries its destination in the value. Without one there is
+    nothing to go to, and recording it would claim the run went somewhere."""
+    surface = ScriptedSurface([search_page])
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.NAVIGATE, None, None)
+
+    assert surface.acted == []
+    assert surface.observe() is search_page
+
+
+def test_acting_on_a_ref_that_names_nothing_is_refused(search_page):
+    """The screen is right and the ref is not. A browser raises; so does this.
+
+    read already refused this. act recording it instead would have left a test
+    asserting an action the real surface could never have performed.
+    """
+    surface = ScriptedSurface([search_page])
+    ghost = NodeRef(observation_id=search_page.observation_id, value="main:999")
+
+    with pytest.raises(SurfaceError):
+        surface.act(ActionType.CLICK, ghost)
+
+    assert surface.acted == []
+    assert surface.observe() is search_page
+
+
 def test_read_is_not_accepted_as_an_action(search_page_filled):
     """Routing a read through act would record it as something the run did and
     advance the application under it."""
@@ -187,3 +242,33 @@ def test_close_is_safe_to_call_twice(member_detail):
     surface = ScriptedSurface([member_detail])
     surface.close()
     surface.close()
+
+
+def test_a_closed_surface_refuses_to_work(member_detail):
+    """Otherwise `_closed` is a flag nothing reads, and a run that kept driving
+    a released session would look fine here and fail against a browser."""
+    surface = ScriptedSurface([member_detail])
+    surface.close()
+
+    with pytest.raises(SurfaceError):
+        surface.observe()
+
+
+def test_a_fixture_that_will_not_parse_is_translated(tmp_path):
+    """This adapter's mechanism, so this adapter's problem. Letting a
+    JSONDecodeError out would make every caller handle a parser's error type."""
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(SurfaceError) as raised:
+        load_observation(broken)
+
+    assert "broken.json" in str(raised.value)
+
+
+def test_a_fixture_missing_a_field_is_translated(tmp_path):
+    partial = tmp_path / "partial.json"
+    partial.write_text('{"observation_id": "o1"}', encoding="utf-8")
+
+    with pytest.raises(SurfaceError):
+        load_observation(partial)

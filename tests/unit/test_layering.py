@@ -100,7 +100,7 @@ def test_ports_import_only_domain() -> None:
             )
 
 
-def test_only_the_composition_root_imports_adapters() -> None:
+def test_only_the_composition_root_and_adapters_import_adapters() -> None:
     """Every module is written against ports except one, which does the wiring.
 
     A second module importing adapters means the wiring has leaked, and swapping
@@ -115,4 +115,7 @@ def test_only_the_composition_root_imports_adapters() -> None:
             continue
         if any(m.startswith("cua.adapters") for m in imported_modules(path)):
             offenders.append(str(path.relative_to(SRC)))
-    assert not offenders, f"only composition.py may import adapters; found {offenders}"
+    assert not offenders, (
+        "only composition.py and modules under adapters/ may import adapters; "
+        f"found {offenders}"
+    )

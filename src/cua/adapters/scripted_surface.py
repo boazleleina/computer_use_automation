@@ -37,28 +37,40 @@ PORTABLE_SIGNAL_KINDS = frozenset(SignalKind) - {SignalKind.WEB_CSS}
 
 
 def load_observation(path: Path) -> Observation:
-    """Read one captured screen into domain types."""
-    document = json.loads(path.read_text(encoding="utf-8"))
-    return Observation(
-        observation_id=document["observation_id"],
-        nodes=tuple(
-            Node(
-                ref=NodeRef(**node["ref"]),
-                role=node["role"],
-                name=node["name"],
-                text=node["text"],
-                frame_id=node["frame_id"],
-                bounds=Rect(**node["bounds"]),
-                enabled=node["enabled"],
-                visible=node["visible"],
-                destination=node["destination"],
-            )
-            for node in document["nodes"]
-        ),
-        url_pattern=document["url_pattern"],
-        page_title=document["page_title"],
-        captured_at=datetime.fromisoformat(document["captured_at"]),
-    )
+    """Read one captured screen into domain types.
+
+    A fixture that will not parse is this adapter's problem, so its exceptions
+    stop here. Letting a JSONDecodeError out would make every caller handle a
+    parser's error type, which is the coupling adapters exist to prevent.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise SurfaceError(f"{path} could not be read as an observation: {error}") from error
+
+    try:
+        return Observation(
+            observation_id=document["observation_id"],
+            nodes=tuple(
+                Node(
+                    ref=NodeRef(**node["ref"]),
+                    role=node["role"],
+                    name=node["name"],
+                    text=node["text"],
+                    frame_id=node["frame_id"],
+                    bounds=Rect(**node["bounds"]),
+                    enabled=node["enabled"],
+                    visible=node["visible"],
+                    destination=node["destination"],
+                )
+                for node in document["nodes"]
+            ),
+            url_pattern=document["url_pattern"],
+            page_title=document["page_title"],
+            captured_at=datetime.fromisoformat(document["captured_at"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise SurfaceError(f"{path} is not a well formed observation: {error}") from error
 
 
 @dataclass(frozen=True)
@@ -92,10 +104,12 @@ class ScriptedSurface:
 
     def open(self, url: str) -> Observation:
         """Attach to the first screen. The url is recorded and otherwise unused."""
+        self._require_open()
         self.acted.append(ActCall(ActionType.NAVIGATE, None, url))
         return self._screens[self._index]
 
     def observe(self) -> Observation:
+        self._require_open()
         return self._screens[self._index]
 
     def act(
@@ -104,20 +118,31 @@ class ScriptedSurface:
         node_ref: NodeRef | None,
         value: str | None = None,
     ) -> None:
+        """Perform an action. Checked fully before anything is recorded.
+
+        An action that could not have happened must not appear in `acted` and
+        must not move the script on, because a test reads that record as what
+        the run did.
+        """
         if action_type is ActionType.READ:
             raise SurfaceError("read is not an action; call read()")
-        if node_ref is not None:
-            self._reject_stale(node_ref)
+
+        if action_type is ActionType.NAVIGATE:
+            if node_ref is not None:
+                raise SurfaceError("navigate addresses a route, not a control")
+            if value is None:
+                raise SurfaceError("navigate needs a route to go to")
+        else:
+            if node_ref is None:
+                raise SurfaceError(f"{action_type.value} needs a control to act on")
+            self._require_present(node_ref)
+
         self.acted.append(ActCall(action_type, node_ref, value))
         self._advance()
 
     def read(self, node_ref: NodeRef) -> str:
         """Read a control. Not recorded in `acted`, and does not advance."""
-        self._reject_stale(node_ref)
-        node = self.observe().node(node_ref)
-        if node is None:
-            raise SurfaceError(f"no node {node_ref.value!r} on the current screen")
-        return readable_value(node)
+        return readable_value(self._require_present(node_ref))
 
     def screenshot(self) -> bytes:
         """A stand-in image. Enough for evidence to have something to attach."""
@@ -127,7 +152,19 @@ class ScriptedSurface:
         return self._supported
 
     def close(self) -> None:
+        """Release the session. Safe to call twice."""
         self._closed = True
+
+    def _require_open(self) -> None:
+        """Refuse to work after close().
+
+        Every other operation goes through observe, so guarding the entry
+        points covers the rest. Without it `_closed` was a flag nothing read,
+        and a run that kept driving a released session would look fine here and
+        fail against a browser.
+        """
+        if self._closed:
+            raise SurfaceError("the surface is closed")
 
     def _advance(self) -> None:
         """Move to the next screen, stopping at the last one.
@@ -138,17 +175,24 @@ class ScriptedSurface:
         """
         self._index = min(self._index + 1, len(self._screens) - 1)
 
-    def _reject_stale(self, node_ref: NodeRef) -> None:
-        """Refuse a ref that belongs to a screen that has been replaced.
+    def _require_present(self, node_ref: NodeRef) -> Node:
+        """The node this ref names, or a refusal saying why it is not there.
 
-        Enforced here exactly as a browser enforces it, because a handle to an
-        element on a page that has since reloaded is dead. Without this a test
-        would pass while carrying a bug the real surface would raise on.
+        Two ways a ref goes bad, and a browser raises on both. The screen it
+        came from may have been replaced, which makes the handle dead however
+        well formed it looks. Or the screen is right and the ref names nothing
+        on it. Acting on either would be acting on a control that is not there,
+        so the fake refuses exactly where the real surface would.
         """
-        current = self.observe().observation_id
-        if node_ref.observation_id != current:
+        current = self.observe()
+        if node_ref.observation_id != current.observation_id:
             raise SurfaceError(
                 f"node {node_ref.value!r} belongs to observation "
-                f"{node_ref.observation_id!r}, but the screen is now {current!r}; "
-                "re-observe before acting"
+                f"{node_ref.observation_id!r}, but the screen is now "
+                f"{current.observation_id!r}; re-observe before acting"
             )
+
+        node = current.node(node_ref)
+        if node is None:
+            raise SurfaceError(f"no node {node_ref.value!r} on the current screen")
+        return node
