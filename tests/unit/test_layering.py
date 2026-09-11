@@ -23,6 +23,7 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src"
 DOMAIN = SRC / "cua" / "domain"
 PORTS = SRC / "cua" / "ports"
+ADAPTERS = SRC / "cua" / "adapters"
 
 FORBIDDEN_SUBSTRINGS = ("adapters", "playwright", "anthropic")
 
@@ -107,7 +108,10 @@ def test_only_the_composition_root_imports_adapters() -> None:
     """
     offenders = []
     for path in python_files(SRC):
-        if path.name == "composition.py":
+        # The composition root chooses implementations, and an adapter may lean
+        # on another adapter: a store raising a configuration error is still one
+        # piece of technology talking to its neighbour.
+        if path.name == "composition.py" or ADAPTERS in path.parents:
             continue
         if any(m.startswith("cua.adapters") for m in imported_modules(path)):
             offenders.append(str(path.relative_to(SRC)))

@@ -29,6 +29,7 @@ from cua.domain.capability import (
     Step,
     TargetSpec,
 )
+from cua.domain.conditions import RecoveryAction
 from cua.domain.errors import MalformedArtifact
 from cua.domain.observation import Observation
 from cua.domain.outcomes import Outcome, Result
@@ -181,6 +182,80 @@ def test_an_interstitial_that_never_clears_asks_for_a_person(
     assert result.outcome is Outcome.INTERVENTION_REQUIRED
     dismissals = [c for c in surface.acted if c.action_type is ActionType.CLICK]
     assert len(dismissals) <= RECOVERIES_PER_STEP + 1
+
+
+def waiting_instead_of_dismissing(capability: Capability, wait_ms: int = 1500) -> Capability:
+    """The same capability, with the interstitial waited out rather than clicked.
+
+    A page still loading has nothing to click. The artifact says which of the
+    two this is, and the engine does not have to guess.
+    """
+    conditions = tuple(
+        replace(
+            condition,
+            recovery=replace(
+                condition.recovery, action=RecoveryAction.WAIT, wait_ms=wait_ms, target=None
+            ),
+        )
+        if condition.recovery is not None
+        else condition
+        for condition in capability.conditions
+    )
+    return Capability(
+        contract=capability.contract,
+        steps=capability.steps,
+        conditions=conditions,
+        success=capability.success,
+    )
+
+
+def test_waiting_out_a_recoverable_condition_goes_through_the_clock(
+    capability, search_page, search_page_filled, interstitial
+):
+    """The reason the Clock port exists.
+
+    A bounded wait tested against a real clock takes as long as the bound it is
+    testing, so either the suite is slow or the bound is shortened and the thing
+    under test is no longer the thing that ships. Here the run believes it
+    waited for three seconds and the test takes none.
+
+    The run still ends in an escalation, and that is the fake being honest
+    rather than a bug. ScriptedSurface advances on act and nothing else, so a
+    screen that only a passing second would change cannot change here. Waiting
+    past something is a property of a live application, and it belongs in the
+    tests that drive one.
+    """
+    clock = FakeClock()
+    surface = ScriptedSurface([search_page, search_page_filled, interstitial, interstitial])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock)
+
+    result = engine.run(
+        waiting_instead_of_dismissing(capability), {"member_id": MEMBER_ID}, run_id="run_1"
+    )
+
+    assert clock.slept == [1500, 1500]
+    assert clock.total_slept_ms == 3000
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+
+    # Waiting is not an action on the application. Nothing was clicked to clear
+    # the notice: only the two actions the capability itself performs.
+    assert [c.action_type for c in surface.acted] == [ActionType.TYPE, ActionType.CLICK]
+
+
+def test_waiting_is_bounded_like_dismissing(
+    capability, search_page, search_page_filled, interstitial
+):
+    """A page that never finishes loading is not waited on forever."""
+    clock = FakeClock()
+    surface = ScriptedSurface([search_page, search_page_filled] + [interstitial] * 6)
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=clock)
+
+    result = engine.run(
+        waiting_instead_of_dismissing(capability), {"member_id": MEMBER_ID}, run_id="run_1"
+    )
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert len(clock.slept) <= RECOVERIES_PER_STEP
 
 
 def test_an_action_outside_the_allowlist_never_reaches_the_surface(
