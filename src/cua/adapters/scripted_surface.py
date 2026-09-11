@@ -122,8 +122,11 @@ class ScriptedSurface:
 
         An action that could not have happened must not appear in `acted` and
         must not move the script on, because a test reads that record as what
-        the run did.
+        the run did. A closed surface is the first of those: acting after
+        close() is exactly the mistake the flag exists to catch, and act is the
+        one entry point that does not reach it through observe.
         """
+        self._require_open()
         if action_type is ActionType.READ:
             raise SurfaceError("read is not an action; call read()")
 
@@ -158,10 +161,10 @@ class ScriptedSurface:
     def _require_open(self) -> None:
         """Refuse to work after close().
 
-        Every other operation goes through observe, so guarding the entry
-        points covers the rest. Without it `_closed` was a flag nothing read,
-        and a run that kept driving a released session would look fine here and
-        fail against a browser.
+        Called from every entry point rather than relying on them all reaching
+        observe, because act does not. Without it `_closed` was a flag nothing
+        read, and a run that kept driving a released session would look fine
+        here and fail against a browser.
         """
         if self._closed:
             raise SurfaceError("the surface is closed")

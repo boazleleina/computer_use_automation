@@ -66,6 +66,21 @@ def route_pattern(url: str) -> str:
     return IDENTIFIER_SEGMENT.sub("/{member_id}", path).split("?")[0]
 
 
+def destination_pattern(url: str) -> str:
+    """Where a link goes, parameterised, with the origin left on.
+
+    Not route_pattern. Policy checks a destination against the origin allowlist
+    before the click is permitted, and an origin it never sees is one it cannot
+    refuse: an absolute link to another host, reduced to its path, reads as a
+    local route and passes. Identifiers are still stripped out of the path,
+    because the destination is written to evidence like everything else.
+    """
+    origin = ORIGIN.match(url)
+    if origin is None:
+        return route_pattern(url)
+    return origin.group(0) + route_pattern(url)
+
+
 def node_from_ax(
     entry: Mapping[str, Any],
     ref: NodeRef,

@@ -215,7 +215,14 @@ def _positive_int(value: Any, label: str) -> int:
 
     max_attempts of zero or a string would leave Recovery with a limit that
     never stops a loop or blows up part way through one.
+
+    bool and float are refused before int() sees them, because int() takes both
+    and quietly changes what the artifact said: `true` becomes 1 attempt and
+    `2.9` becomes 2. An author who wrote either meant something, and silently
+    rounding it is worse than telling them it is not a bound.
     """
+    if isinstance(value, bool) or (isinstance(value, float) and value != int(value)):
+        raise MalformedArtifact(f"{label} must be a whole number, not {value!r}")
     try:
         number = int(value)
     except (TypeError, ValueError):

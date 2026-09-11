@@ -53,8 +53,11 @@ class FilesystemArtifactStore:
         refusing is that an approved artifact stays what it was.
         """
         path = self._path(name, version)
-        path.parent.mkdir(parents=True, exist_ok=True)
         try:
+            # Inside the boundary with the write. A permission error or a full
+            # disk fails here just as readily, and an OSError escaping this
+            # adapter untranslated is the coupling it exists to prevent.
+            path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("x", encoding="utf-8") as handle:
                 handle.write(yaml.safe_dump(dict(document), sort_keys=False))
         except FileExistsError as error:

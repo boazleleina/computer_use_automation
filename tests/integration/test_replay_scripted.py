@@ -533,3 +533,34 @@ def test_a_read_only_capability_needs_no_approval(capability):
         capability.contract.effect, approved=capability.contract.approved
     )
     assert isinstance(verdict, Allowed)
+
+
+def test_a_malformed_placeholder_is_refused(capability, search_page):
+    """A placeholder the grammar does not recognise must not survive filling.
+
+    `{{ inputs.member-id }}` matched nothing, so substitution left it alone and
+    the engine typed the braces into the application verbatim. Same class as an
+    undeclared name, and the same answer: refuse the artifact rather than send
+    a template to a bank.
+    """
+    from dataclasses import replace as _replace
+
+    from cua.app.replay import _fill
+
+    with pytest.raises(MalformedArtifact):
+        _fill("{{ inputs.member-id }}", {"member_id": MEMBER_ID})
+
+    broken = _replace(
+        capability,
+        steps=(
+            _replace(capability.steps[0], value="{{ inputs.member id }}"),
+            *capability.steps[1:],
+        ),
+    )
+    surface = ScriptedSurface([search_page])
+    engine = ReplayCapability(surface=surface, policy=POLICY, clock=FakeClock())
+
+    with pytest.raises(MalformedArtifact):
+        engine.run(broken, {"member_id": MEMBER_ID}, run_id="malformed")
+
+    assert surface.acted == []

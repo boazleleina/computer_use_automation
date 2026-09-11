@@ -37,6 +37,12 @@ from cua.ports.surface import Surface
 
 PLACEHOLDER = re.compile(r"\{\{\s*inputs\.([a-zA-Z0-9_]+)\s*\}\}")
 
+# Anything shaped like a placeholder, whether or not it is a valid one. A
+# template is checked against both: `{{ inputs.member-id }}` matches this and
+# not PLACEHOLDER, and without the wider pattern it would survive substitution
+# untouched and be typed into the application exactly as written.
+PLACEHOLDER_SHAPED = re.compile(r"\{\{[^}]*\}\}")
+
 # A detector may say `target_ref: self`, meaning the control this step acted on.
 SELF_REF = "self"
 
@@ -627,6 +633,17 @@ def _fill(template: str | None, bound: Mapping[str, str]) -> str | None:
     """
     if template is None:
         return None
+
+    malformed = sorted(
+        found.group(0)
+        for found in PLACEHOLDER_SHAPED.finditer(template)
+        if not PLACEHOLDER.fullmatch(found.group(0))
+    )
+    if malformed:
+        raise MalformedArtifact(
+            f"template contains placeholder(s) {malformed} that are not "
+            "of the form {{ inputs.name }}"
+        )
 
     unknown = sorted({m.group(1) for m in PLACEHOLDER.finditer(template)} - set(bound))
     if unknown:

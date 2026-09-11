@@ -20,11 +20,11 @@ The browser is owned for the length of a run rather than a step, which is what
 lets a person take the same live session during an escalation and hand it back.
 """
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from playwright.sync_api import Error as PlaywrightError
@@ -33,6 +33,7 @@ from playwright.sync_api import Frame, Page, sync_playwright
 from cua.adapters.observation_shape import (
     MAIN_FRAME,
     ZERO_BOUNDS,
+    destination_pattern,
     is_worth_keeping,
     node_from_ax,
     route_pattern,
@@ -57,6 +58,10 @@ PORTABLE_SIGNAL_KINDS = frozenset(SignalKind) - {SignalKind.WEB_CSS}
 
 STAMP = "function (value) { this.setAttribute(arguments[1], value); }"
 
+# Whatever the wrapped page call hands back, so the error boundary can sit in
+# front of the reading operations as well as the acting ones.
+T = TypeVar("T")
+
 
 @dataclass
 class PlaywrightSurface:
@@ -73,7 +78,7 @@ class PlaywrightSurface:
 
     def open(self, url: str) -> Observation:
         self._require_open()
-        self.page.goto(self._absolute(url), timeout=self.action_timeout_ms)
+        self._run(lambda: self.page.goto(self._absolute(url), timeout=self.action_timeout_ms))
         return self.observe()
 
     def observe(self) -> Observation:
@@ -85,6 +90,10 @@ class PlaywrightSurface:
         makes a ref belong to exactly one of them.
         """
         self._require_open()
+        return self._run(self._describe)
+
+    def _describe(self) -> Observation:
+        """The body of observe, inside the error boundary."""
         observation_id = f"obs_{uuid4().hex[:8]}"
         self._handles = {}
 
@@ -160,7 +169,7 @@ class PlaywrightSurface:
 
     def screenshot(self) -> bytes:
         self._require_open()
-        return bytes(self.page.screenshot(full_page=False))
+        return self._run(lambda: bytes(self.page.screenshot(full_page=False)))
 
     def supported_signal_kinds(self) -> frozenset[SignalKind]:
         return PORTABLE_SIGNAL_KINDS
@@ -258,15 +267,20 @@ class PlaywrightSurface:
             raise SurfaceError(f"no node {node_ref.value!r} on the current screen")
         return node
 
-    def _run(self, action: Any) -> None:
-        """Translate a driver failure into a domain one.
+    def _run(self, action: Callable[[], T]) -> T:
+        """Translate a driver failure into a domain one, and pass the value on.
 
         A Playwright error stops here. Letting it out would put a driver's
         exception type into the hands of every caller of the port, which is the
         coupling this layer exists to prevent.
+
+        Everything that touches the page goes through this, not only act. A
+        page that navigates away mid-observation or a browser that dies during
+        a screenshot raise the same driver errors, and those reached callers
+        untranslated while this only wrapped the acting half.
         """
         try:
-            action()
+            return action()
         except PlaywrightError as error:
             raise SurfaceError(str(error).splitlines()[0]) from error
 
@@ -316,12 +330,16 @@ def browser_session(
 
 
 def _link_destinations(frame: Frame) -> dict[str, str]:
-    """Accessible name to route, for anchors.
+    """Accessible name to destination, for anchors.
 
     Node.destination exists so policy can refuse a link before it is followed,
     which is only possible while the destination travels with the control. A
-    name pointing at two different routes is reported as unknown rather than
-    guessed at.
+    name pointing at two different destinations is reported as unknown rather
+    than guessed at.
+
+    destination_pattern and not route_pattern: policy checks the origin of a
+    destination against its allowlist, and a cross-origin link whose origin was
+    stripped here arrives looking like a local route and is allowed.
     """
     seen: dict[str, str] = {}
     repeated: set[str] = set()
@@ -330,10 +348,10 @@ def _link_destinations(frame: Frame) -> dict[str, str]:
         href = anchor.get_attribute("href") or ""
         if not name:
             continue
-        route = route_pattern(href)
-        if name in seen and seen[name] != route:
+        destination = destination_pattern(href)
+        if name in seen and seen[name] != destination:
             repeated.add(name)
-        seen[name] = route
+        seen[name] = destination
     for name in repeated:
         seen.pop(name, None)
     return seen

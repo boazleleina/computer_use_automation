@@ -12,11 +12,9 @@ and the scripted tests would have been testing a fiction.
 
 import json
 import os
-import socket
 import threading
 import urllib.request
 from collections.abc import Iterator
-from contextlib import closing
 
 import pytest
 import yaml
@@ -40,26 +38,24 @@ HEADLESS = os.environ.get("CUA_HEADLESS", "1") != "0"
 SLOW_MO_MS = int(os.environ.get("CUA_SLOW_MO", "0"))
 
 
-def free_port() -> int:
-    with closing(socket.socket()) as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
-
-
 @pytest.fixture(scope="module")
 def target_app() -> Iterator[str]:
     """The legacy application, started for these tests and torn down after.
 
     In process and on a free port, so the suite does not depend on somebody
     having left a server running, and two runs cannot collide.
+
+    The server picks the port itself rather than being told one a probe socket
+    found and released. Between releasing the probe and binding the server,
+    anything on the machine may take it.
     """
     os.environ.setdefault("TARGET_APP_USER", "tmiller")
     os.environ.setdefault("TARGET_APP_PASSWORD", "live-test-password")
 
     from target_app.app import create_app
 
-    port = free_port()
-    server = make_server("127.0.0.1", port, create_app(), threaded=True)
+    server = make_server("127.0.0.1", 0, create_app(), threaded=True)
+    port = server.server_port
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -107,7 +103,8 @@ def arm(base_url: str, lever: str, payload: dict[str, object] | None = None) -> 
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    urllib.request.urlopen(request).read()
+    with urllib.request.urlopen(request, timeout=5) as response:
+        response.read()
 
 
 def replay(
