@@ -230,12 +230,12 @@ def test_a_result_reports_the_outcome_and_the_declared_outputs():
         condition_name="MEMBER_FOUND",
         outputs={"savings_balance": "4820.55"},
         step_id="read_savings_balance",
-        resolved_via=SignalKind.ANCHOR,
+        resolved_via_by_step={"read_savings_balance": SignalKind.ANCHOR},
     )
 
     assert result.ok
     assert result.outputs["savings_balance"] == "4820.55"
-    assert result.resolved_via is SignalKind.ANCHOR
+    assert result.resolved_via_by_step == {"read_savings_balance": SignalKind.ANCHOR}
 
 
 def test_a_business_outcome_is_neither_ok_nor_a_failure():

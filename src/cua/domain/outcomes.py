@@ -89,9 +89,14 @@ class Result:
     member detail heading and found the sign on page", which is the difference
     between a report somebody can act on and one they cannot.
 
-    `resolved_via` records which signal actually matched. A capability that has
-    started resolving on a weaker signal than it was compiled with is drifting,
-    and this is where that shows up first.
+    `resolved_via_by_step` records which signal matched for each target, keyed
+    by step. Per step rather than one value for the run, because drift is a
+    property of a target: a capability whose third step has started resolving on
+    a weaker signal than it was compiled with is about to break there, and a
+    single value for the whole run cannot say where.
+
+    The same information goes to evidence as it happens. This is the summary a
+    caller gets without reading the stream.
     """
 
     run_id: str
@@ -105,7 +110,7 @@ class Result:
     expected: str | None = None
     observed: str | None = None
     evidence_ref: str | None = None
-    resolved_via: SignalKind | None = None
+    resolved_via_by_step: Mapping[str, SignalKind] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:

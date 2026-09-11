@@ -10,6 +10,7 @@ not change anything.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 import yaml
@@ -19,7 +20,15 @@ from cua.adapters.scripted_surface import ScriptedSurface
 from cua.app.replay import ReplayCapability
 from cua.domain.actions import ActionType, Effect
 from cua.domain.artifact import capability_from_document
-from cua.domain.capability import Capability, SignalKind
+from cua.domain.capability import (
+    Approval,
+    Capability,
+    Confidence,
+    Signal,
+    SignalKind,
+    Step,
+    TargetSpec,
+)
 from cua.domain.errors import MalformedArtifact
 from cua.domain.observation import Observation
 from cua.domain.outcomes import Outcome, Result
@@ -91,7 +100,15 @@ def test_success(capability, search_page, search_page_filled, member_detail):
         "savings_balance": "4820.55",
         "account_name": "Test Member One",
     }
-    assert result.resolved_via is SignalKind.ANCHOR
+    # Per step, not one value for the run. Drift is a property of a target:
+    # a capability whose third step has started resolving on a weaker signal is
+    # about to break there, and a single value cannot say where.
+    assert result.resolved_via_by_step == {
+        "enter_member_number": SignalKind.ROLE_NAME,
+        "submit_lookup": SignalKind.ROLE_NAME,
+        "read_savings_balance": SignalKind.ANCHOR,
+        "read_account_name": SignalKind.ANCHOR,
+    }
     assert [call.action_type for call in surface.acted] == [ActionType.TYPE, ActionType.CLICK]
 
 
@@ -209,6 +226,148 @@ def test_a_missing_required_input_is_refused(capability, search_page):
     with pytest.raises(MalformedArtifact):
         engine.run(capability, {}, run_id="run_1")
 
+    assert surface.acted == []
+
+
+def test_a_link_leaving_the_allowed_routes_is_refused_without_being_followed(
+    capability, search_page, member_detail
+):
+    """The route half of the guard, proven through the engine rather than the
+    rules on their own.
+
+    The landmine list is emptied so only the route rule can fire. Sign Off
+    carries a destination of /logout, which is not a route this run may visit,
+    and the proof that it was refused before it was followed is that the surface
+    was never asked to click anything.
+    """
+    sign_off = next(n for n in search_page.nodes if n.name == "Sign Off")
+    assert sign_off.destination == "/logout"
+
+    leaving = Capability(
+        contract=capability.contract,
+        steps=(
+            Step(
+                id="sign_off",
+                action_type=ActionType.CLICK,
+                target=TargetSpec(
+                    intent="the sign off link",
+                    rationale="written by a test",
+                    signals=(
+                        Signal(
+                            kind=SignalKind.ROLE_NAME,
+                            confidence=Confidence.HIGH,
+                            role="link",
+                            name="Sign Off",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        conditions=capability.conditions,
+    )
+    routes_only = Policy(
+        allowed_origins=POLICY.allowed_origins,
+        allowed_routes=POLICY.allowed_routes,
+        allowed_actions=POLICY.allowed_actions,
+        denied_controls=(),
+    )
+    result, surface = run(leaving, [search_page, member_detail], policy=routes_only)
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.observed == "route_not_allowed"
+    assert surface.acted == []
+
+
+def test_a_checkpoint_whose_control_vanished_fails_rather_than_throwing(
+    capability, search_page, member_detail
+):
+    """`target_ref: self` re-resolves against the screen after the action.
+
+    Here the field is gone from that screen entirely, so there is no subject to
+    read back. That has to read as the checkpoint not holding, not as an
+    exception from inside the engine.
+    """
+    result, _ = run(capability, [search_page, member_detail])
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.step_id == "enter_member_number"
+    assert result.expected and "100045" in result.expected
+
+
+def test_the_final_screen_is_settled_like_every_other_one(
+    capability, search_page, session_expired
+):
+    """The last screen is exactly where a session expires.
+
+    Looking at it without settling would report an expiry as "the success
+    condition did not hold", which names the symptom and hides the cause.
+    """
+    nothing_to_do = Capability(
+        contract=capability.contract,
+        steps=(),
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, _ = run(nothing_to_do, [session_expired])
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.condition_name == "session_expired"
+
+
+# ------------------------------------------------------------- the two guards
+
+
+def test_a_mutating_capability_that_was_never_approved_does_not_run(
+    capability, search_page, search_page_filled, member_detail
+):
+    """The approval gate, asked once, before a run exists.
+
+    read_only hides this today. The first capability that writes inherits a
+    guard, and it has to be one that actually fires.
+    """
+    mutating = Capability(
+        contract=replace(capability.contract, effect=Effect.MUTATING),
+        steps=capability.steps,
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, surface = run(mutating, [search_page, search_page_filled, member_detail])
+
+    assert result.outcome is Outcome.HARD_FAILURE
+    assert result.observed == "approval_required"
+    assert surface.acted == []
+    assert result.step_id is None
+
+
+def test_an_approved_mutating_capability_runs(
+    capability, search_page, search_page_filled, member_detail
+):
+    approved = Capability(
+        contract=replace(capability.contract, effect=Effect.MUTATING, approval=Approval.APPROVED),
+        steps=capability.steps,
+        conditions=capability.conditions,
+        success=capability.success,
+    )
+    result, _ = run(approved, [search_page, search_page_filled, member_detail])
+
+    assert result.outcome is Outcome.SUCCESS
+
+
+def test_starting_against_an_expired_session_escalates_at_step_zero(
+    capability, session_expired
+):
+    """The contract says the run needs an authenticated session.
+
+    Checking it before step one means a cold start against an expired session
+    takes the same path a mid-run expiry takes, rather than getting three steps
+    in and discovering it.
+    """
+    assert "authenticated_session" in capability.contract.preconditions
+
+    result, surface = run(capability, [session_expired])
+
+    assert result.outcome is Outcome.INTERVENTION_REQUIRED
+    assert result.step_id is None
     assert surface.acted == []
 
 
