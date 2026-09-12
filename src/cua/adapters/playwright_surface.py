@@ -212,6 +212,7 @@ class PlaywrightSurface:
             session.send("DOM.getDocument")
             tree = session.send("Accessibility.getFullAXTree")
             destinations = _link_destinations(frame)
+            secrets = _secret_names(frame)
 
             nodes: list[Node] = []
             elements: list[int | None] = []
@@ -229,6 +230,8 @@ class PlaywrightSurface:
                 )
                 if node.role == "link" and node.name:
                     node = _with_destination(node, destinations.get(node.name))
+                if node.name in secrets:
+                    node = replace(node, secret=True)
                 nodes.append(node)
                 elements.append(int(backend_id) if backend_id else None)
             return nodes, elements
@@ -332,6 +335,45 @@ def browser_session(
         finally:
             context.close()
             browser.close()
+
+
+def _secret_names(frame: Frame) -> set[str]:
+    """Accessible names of the controls that hold a credential.
+
+    Read from the markup rather than the accessibility tree, because the tree
+    does not distinguish one: Chrome reports a password box as a textbox like
+    any other, which is correct for a screen reader and useless for deciding
+    whether something may be typed into.
+
+    This is the one place the DOM is consulted, and it is consulted for a
+    property the accessibility tree genuinely does not carry — not as a
+    shortcut around perception. A surface on another technology answers the
+    same question its own way; what leaves here is a domain fact.
+    """
+    names: set[str] = set()
+    for box in frame.query_selector_all("input[type=password]"):
+        name = _accessible_name(frame, box)
+        if name:
+            names.add(name)
+    return names
+
+
+def _accessible_name(frame: Frame, element: Any) -> str | None:
+    """What the browser calls this control, so it can be matched to its node.
+
+    The label's text, its aria-label, or the placeholder, in the order the
+    browser resolves them.
+    """
+    name = frame.evaluate(
+        """(el) => {
+            const byId = el.id && document.querySelector(`label[for="${el.id}"]`);
+            const wrapping = el.closest('label');
+            const text = (byId || wrapping)?.textContent?.trim();
+            return text || el.getAttribute('aria-label') || el.placeholder || null;
+        }""",
+        element,
+    )
+    return str(name) if name else None
 
 
 def _link_destinations(frame: Frame) -> dict[str, str]:

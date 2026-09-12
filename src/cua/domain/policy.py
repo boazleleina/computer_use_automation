@@ -36,6 +36,7 @@ class PolicyRule(StrEnum):
     ROUTE_NOT_ALLOWED = "route_not_allowed"
     ORIGIN_NOT_ALLOWED = "origin_not_allowed"
     APPROVAL_REQUIRED = "approval_required"
+    SECRET_CONTROL = "secret_control"
 
 
 class Sensitivity(StrEnum):
@@ -318,6 +319,24 @@ class Policy:
             return Denied(
                 rule=PolicyRule.ROUTE_NOT_ALLOWED,
                 reason="navigate was given no route, so there is nothing to check it against",
+            )
+
+        if node is not None and node.secret:
+            # Before the denied-control list and before anything else about the
+            # control, because this is the one refusal that must not depend on
+            # somebody having remembered to configure it. A password field is a
+            # password field on every screen of every tenant.
+            #
+            # Every action, not only type. Reading one returns whatever is in
+            # it, and clicking one is at best pointless. There is no action on a
+            # credential field that this system has business performing: a
+            # person signs on, and the automation is handed a session.
+            return Denied(
+                rule=PolicyRule.SECRET_CONTROL,
+                reason=(
+                    f"{node.name or node.role!r} holds a credential; "
+                    "signing on is a person's job and never the automation's"
+                ),
             )
 
         if node is not None:
