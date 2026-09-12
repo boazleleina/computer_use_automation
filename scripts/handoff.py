@@ -129,9 +129,9 @@ def sign_on(page: object, base_url: str) -> None:
 
 def main() -> int:
     # The sink appends, which is right for a run and wrong for a demonstration
-    # somebody runs three times before it goes the way they wanted. Without
-    # this the committed record was three handovers end to end in one file,
-    # none of which succeeded, and it read as one run behaving bizarrely.
+    # somebody runs a few times before it goes the way they wanted. Left alone,
+    # three handovers ended up in one file reading as a single run behaving
+    # inexplicably. Each attempt starts from empty instead.
     run_dir = EVIDENCE / RUN_ID
     if run_dir.exists():
         for existing in run_dir.rglob("*"):

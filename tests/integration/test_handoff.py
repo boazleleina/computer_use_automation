@@ -371,3 +371,36 @@ def test_an_unlabelled_password_field_is_not_named_after_its_own_value(target_ap
         assert event.value == REDACTED
         assert secret not in (event.target or "")
         assert secret not in (event.value or "")
+
+
+def test_what_a_person_did_survives_a_blocked_process(target_app: str):
+    """The case the console operator is, and the one the design first missed.
+
+    A binding calling back into Python records nothing while the process is
+    blocked on a keypress, because nothing is pumping Playwright — so a real
+    handover recorded zero actions while this suite recorded five, and the
+    difference was that the suite's person drives through Playwright on the
+    same thread.
+
+    The page accumulates and is read at the end, which is why the sleep below
+    changes nothing.
+    """
+    import time
+
+    secret = "hunter2-would-have-leaked"
+
+    with browser_session(target_app, headless=HEADLESS) as surface:
+        activity = BrowserActivity(page=surface.page)
+        surface.page.goto(f"{target_app}/login")
+        activity.start()
+        surface.page.fill("#ctl00_cph_txtUser", "tmiller")
+        surface.page.fill("#ctl00_cph_txtPass", secret)
+        surface.page.click("#ctl00_cph_btnSignOn")
+        time.sleep(1.0)  # nothing is pumping Playwright here, as on input()
+        events = activity.stop()
+
+    kinds = [e.action for e in events]
+    assert HumanAction.INPUT in kinds
+    assert HumanAction.SENSITIVE_INPUT in kinds
+    assert HumanAction.CLICK in kinds
+    assert secret not in json.dumps([e.__dict__ for e in events], default=str)
