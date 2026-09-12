@@ -274,6 +274,12 @@ def _proposal_from(block: Mapping[str, Any], observation: Observation) -> Propos
             kind=kind, rationale=rationale, action_type=action_type, value=str(value)
         )
 
+    if action_type in (ActionType.TYPE, ActionType.SELECT) and not value:
+        # Same rule as navigate, for the same reason: an action whose whole
+        # effect is the value it carries, proposed without one, would fill the
+        # field with an empty string and record it as having worked.
+        raise MalformedResponse(f"{action_type.value} was proposed with no value")
+
     ref = _ref_at(payload.get("target"), observation)
     return ProposedAction(
         kind=kind,

@@ -155,7 +155,15 @@ def redact_event(
     construction and never carries an identifier. This catches the case where
     something else did.
     """
-    rendered = {key: _render(key, value, declared, rules) for key, value in event.items()}
+    # What the run declared about particular values, merged with what the
+    # capability declared about fields, strictest winning. Computed before
+    # rendering rather than after, because a field rendered by its own
+    # declaration first cannot be re-judged afterwards: a secret masked to
+    # ****3456 no longer contains the secret for the second pass to find.
+    leaked = _strictest(dict(known or {}), _sensitive_values(event, declared))
+    rendered = {
+        key: _render(key, value, declared, rules, leaked) for key, value in event.items()
+    }
 
     # What this record declared, plus what the run declared. The second half
     # matters more than it looks: a record is only self-describing when it
@@ -163,11 +171,28 @@ def redact_event(
     # click records no value at all, so a rationale in that record mentioning
     # the member number had nothing to be compared against and went to disk
     # raw. The run knows its own identifiers from the moment it is given them.
-    leaked = dict(known or {})
-    leaked |= _sensitive_values(event, declared)
     if not leaked:
         return rendered
     return {key: _contain(value, leaked) for key, value in rendered.items()}
+
+
+def _strictest(
+    run_level: dict[str, Sensitivity], record_level: dict[str, Sensitivity]
+) -> dict[str, Sensitivity]:
+    """Merge two views of what is sensitive, keeping the stricter of each.
+
+    A plain update let the record win, which is the wrong way round when the
+    record is the weaker claim: a token the run declared secret, appearing in a
+    field the capability declared personal, came out masked to its last four
+    characters instead of dropped. Four characters of a credential is not a
+    redacted credential, which is the whole reason secret and personal are
+    handled differently at all.
+    """
+    merged = dict(record_level)
+    for value, sensitivity in run_level.items():
+        if sensitivity is Sensitivity.SECRET or value not in merged:
+            merged[value] = sensitivity
+    return merged
 
 
 def _sensitive_values(
@@ -208,13 +233,16 @@ def _contain(value: object, leaked: Mapping[str, Sensitivity]) -> object:
     if not isinstance(value, str):
         return value
 
+    # Secrets first, and the whole field goes. Masking a personal value first
+    # could break a secret into pieces this loop no longer recognises, leaving
+    # fragments of a credential in a field that was then kept.
+    if any(raw in value for raw, s in leaked.items() if s is Sensitivity.SECRET):
+        return None
+
     contained = value
     for raw, sensitivity in leaked.items():
-        if raw not in contained:
-            continue
-        if sensitivity is Sensitivity.SECRET:
-            return None
-        contained = contained.replace(raw, mask(raw))
+        if sensitivity is not Sensitivity.SECRET and raw in contained:
+            contained = contained.replace(raw, mask(raw))
     return contained
 
 
@@ -223,13 +251,20 @@ def _render(
     value: object,
     declared: Mapping[str, Sensitivity],
     rules: RedactionRules,
+    leaked: Mapping[str, Sensitivity] | None = None,
 ) -> object:
     if isinstance(value, Mapping):
-        return {k: _render(k, v, declared, rules) for k, v in value.items()}
+        return {k: _render(k, v, declared, rules, leaked) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_render(key, item, declared, rules) for item in value]
+        return [_render(key, item, declared, rules, leaked) for item in value]
 
-    rendering = rules.rendering_for(declared.get(key))
+    # The field's own class, unless the run said this particular value is
+    # something stricter. A field declared personal holding a value the run
+    # declared secret is a secret, whatever the field is called.
+    sensitivity = declared.get(key)
+    if leaked and isinstance(value, str) and leaked.get(value) is Sensitivity.SECRET:
+        sensitivity = Sensitivity.SECRET
+    rendering = rules.rendering_for(sensitivity)
     if rendering is Rendering.DROP:
         return None
     if rendering is Rendering.MASK:

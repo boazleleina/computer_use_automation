@@ -52,6 +52,13 @@ SCHEMA_VERSION = "1.0"
 
 def capability_from_document(document: Mapping[str, Any]) -> Capability:
     """Parse an artifact document, or say precisely what is wrong with it."""
+    version = str(document.get("schema_version", SCHEMA_VERSION))
+    if version != SCHEMA_VERSION:
+        raise MalformedArtifact(
+            f"this artifact declares schema_version {version!r} and this reader "
+            f"understands {SCHEMA_VERSION!r}; an artifact written to a schema "
+            "nobody here knows cannot be executed on a guess"
+        )
     steps = tuple(_step(s) for s in document.get("steps", ()))
     _reject_duplicate_step_ids(steps)
     return Capability(
@@ -220,10 +227,11 @@ def _positive_int(value: Any, label: str) -> int:
     max_attempts of zero or a string would leave Recovery with a limit that
     never stops a loop or blows up part way through one.
 
-    bool and float are refused before int() sees them, because int() takes both
-    and quietly changes what the artifact said: `true` becomes 1 attempt and
-    `2.9` becomes 2. An author who wrote either meant something, and silently
-    rounding it is worse than telling them it is not a bound.
+    bool is refused outright and so is a fractional float, because int() takes
+    both and quietly changes what the artifact said: `true` becomes 1 attempt
+    and `2.9` becomes 2. An author who wrote either meant something, and
+    silently rounding it is worse than telling them it is not a bound. `2.0` is
+    a whole number written with a decimal point and is accepted as two.
     """
     # is_integer rather than a comparison against int(value): infinity and nan
     # cannot be converted at all, so the comparison raises OverflowError and

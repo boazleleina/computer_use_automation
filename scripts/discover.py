@@ -26,7 +26,9 @@ import json
 import os
 import sys
 import threading
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import yaml
 from werkzeug.serving import make_server
@@ -45,7 +47,7 @@ from cua.adapters.claude_model import ClaudeModel, anthropic_client  # noqa: E40
 from cua.adapters.clocks import RealClock  # noqa: E402
 from cua.adapters.fs_evidence_sink import FilesystemEvidenceSink  # noqa: E402
 from cua.adapters.playwright_surface import browser_session  # noqa: E402
-from cua.app.discover import DiscoverCapability  # noqa: E402
+from cua.app.discover import DiscoverCapability, DiscoveryLimits  # noqa: E402
 from cua.domain.actions import ActionType  # noqa: E402
 from cua.domain.artifact import capability_to_document  # noqa: E402
 from cua.domain.compiler import compile_capability  # noqa: E402
@@ -132,10 +134,27 @@ def settings(path: Path) -> dict[str, object]:
     every adapter; until then the script reads the one block it needs.
     """
     document = yaml.safe_load(path.read_text(encoding="utf-8"))
-    model = document.get("model") if isinstance(document, dict) else None
+    if not isinstance(document, dict):
+        raise SystemExit(f"{path} is not a configuration document")
+    model = document.get("model")
     if not isinstance(model, dict) or not model.get("name"):
         raise SystemExit(f"{path} has no model.name; nothing says which model to run")
-    return model
+    return document
+
+
+def limits_from(document: Mapping[str, Any]) -> DiscoveryLimits:
+    """The loop's bounds, out of config rather than out of the defaults.
+
+    The defaults happen to match what config.yaml says, which is exactly why
+    this is worth doing: a config nobody reads agrees with the code until the
+    day somebody edits it.
+    """
+    block = document.get("discovery") or {}
+    return DiscoveryLimits(
+        max_steps=int(block.get("max_steps", 40)),
+        run_ms=int(block.get("run_ms", 900_000)),
+        stop_on_repeated_state=bool(block.get("stop_on_repeated_state", True)),
+    )
 
 
 def serve() -> tuple[str, object]:
@@ -216,11 +235,13 @@ def main(argv: list[str] | None = None) -> int:
         # two apart by directory alone is a thing somebody gets wrong once.
         stream_name="discovery_run.jsonl",
     )
-    chosen = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
+    config = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
+    chosen = config["model"]
+    limits = limits_from(config)
     model = ClaudeModel(
         client=anthropic_client(key),
         model=str(chosen["name"]),
-        max_tokens=int(chosen.get("max_tokens", 4096)),  # type: ignore[call-overload]
+        max_tokens=int(chosen.get("max_tokens", 4096)),
     )
     print(f"model: {model.model}")
 
@@ -250,6 +271,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 clock=RealClock(),
                 evidence=sink,
+                limits=limits,
             )
             trajectory = engine.run(goal, run_id=str(args.run_id))
     finally:
@@ -263,8 +285,12 @@ def main(argv: list[str] | None = None) -> int:
     # the result row named after it. The events stream gets that treatment from
     # the sink; writing this one straight past the sink would put in the
     # deliverable exactly the data the sink exists to keep out of it.
-    (EVIDENCE / str(args.run_id)).mkdir(parents=True, exist_ok=True)
-    (EVIDENCE / RUN_ID / "transcript.json").write_text(
+    # One directory per run, named by the run. Writing the stream under the
+    # chosen id and the transcript under a constant meant a second run silently
+    # overwrote the first one's transcript while leaving its log alone.
+    run_dir = EVIDENCE / str(args.run_id)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "transcript.json").write_text(
         _masked(json.dumps(model.transcript, indent=2, default=str), {"member_id": member_id}),
         encoding="utf-8",
     )
@@ -288,11 +314,11 @@ def main(argv: list[str] | None = None) -> int:
         release="4.2.11",
     )
     document = capability_to_document(capability)
-    (EVIDENCE / RUN_ID / "capability.yaml").write_text(
+    (run_dir / "capability.yaml").write_text(
         yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8"
     )
 
-    print(f"\nwrote {EVIDENCE / str(args.run_id)}/")
+    print(f"\nwrote {run_dir}/")
     return 0
 
 

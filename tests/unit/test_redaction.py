@@ -281,3 +281,26 @@ def test_a_run_identifier_is_masked_in_records_that_do_not_carry_it():
     )
     assert MEMBER_NUMBER not in json.dumps(withknown)
     assert withknown["step"] == "clicked Find to look up member ****0045"
+
+
+def test_a_run_level_secret_is_not_downgraded_by_the_field_it_sits_in():
+    """Strictest wins, and it has to win before rendering as well as after.
+
+    A token the run declared secret, landing in a field the capability declared
+    personal, came out masked to its last four characters. Four characters of a
+    credential is not a redacted credential, and it is the whole reason secret
+    and personal are handled differently at all.
+    """
+    token = "tok_abcdef123456"
+    event = {"step": f"used {token}", "member_id": token}
+
+    redacted = redact_event(
+        event,
+        {"member_id": Sensitivity.PERSONAL, "step": Sensitivity.INTERNAL},
+        RULES,
+        known={token: Sensitivity.SECRET},
+    )
+
+    assert redacted["step"] is None
+    assert redacted["member_id"] is None
+    assert token[-4:] not in json.dumps(redacted)

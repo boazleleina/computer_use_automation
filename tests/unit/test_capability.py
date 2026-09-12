@@ -299,3 +299,15 @@ def test_two_outputs_cannot_share_a_name():
                            sensitivity=Sensitivity.PERSONAL),
             ),
         )
+
+
+def test_an_artifact_written_to_an_unknown_schema_is_refused():
+    """A reader that guesses at a schema it does not know is worse than one
+    that stops: the guess executes against a live application."""
+    from cua.domain.artifact import capability_from_document
+    from cua.domain.errors import MalformedArtifact
+
+    with pytest.raises(MalformedArtifact) as raised:
+        capability_from_document({"schema_version": "9.9", "contract": {}})
+
+    assert "9.9" in str(raised.value)

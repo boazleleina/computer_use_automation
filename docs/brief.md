@@ -19,11 +19,11 @@ Their warning, worth writing down because it is the one I designed around:
 
 | # | Requirement | Where it is | State |
 |---|---|---|---|
-| 3.1 | Goal-driven LLM loop: goal + target in, observe/decide/act against a live surface, stop on max steps / timeout / dead end | `app/discover.py` | **not built** — Phase 5 |
-| 3.2 | Typed, versioned, serialisable artifact: ordered steps, how each target is identified + why, typed inputs, typed outputs, checkpoint | `domain/capability.py`, `domain/artifact.py`, `tests/fixtures/member_lookup.handwritten.yaml` | done, hand-written; discovery must emit this same shape |
+| 3.1 | Goal-driven LLM loop: goal + target in, observe/decide/act against a live surface, stop on max steps / timeout / dead end | `app/discover.py`, `adapters/claude_model.py` | done; five stopping conditions, one real run per scenario in `evidence/` |
+| 3.2 | Typed, versioned, serialisable artifact: ordered steps, how each target is identified + why, typed inputs, typed outputs, checkpoint | `domain/capability.py`, `domain/artifact.py`, `domain/compiler.py` | done; now emitted by the compiler, not only hand-written |
 | 3.3 | Deterministic replay, no model: stable targeting, verify checkpoint, return outputs, separate business outcome / recoverable / hard failure | `app/replay.py`, `domain/outcomes.py`, `domain/resolution.py` | done, proven on two surfaces |
-| 3.4 | Allowlist of routes and action types; risky vs reversible handled conservatively; never persist secrets or raw PII | `domain/policy.py` | done |
-| 3.5 | Evidence: structured log of what it did and why, plus a richer signal on failure | `ports/evidence.py`, `_emit` / `_capture` in replay | port + call sites done; **no adapter that writes to disk** |
+| 3.4 | Allowlist of routes and action types; risky vs reversible handled conservatively; never persist secrets or raw PII | `domain/policy.py` | done; three layers — action allowlist, `may_operate` on the screen, `SECRET_CONTROL` on the control |
+| 3.5 | Evidence: structured log of what it did and why, plus a richer signal on failure | `adapters/fs_evidence_sink.py` | log done and redacting; **screenshot on failure still only a port call** |
 | 3.6 | Escalation and handoff: detect stuck, route an intervention request with context, human takes over **the same live session**, control handed back, record what they did | `domain/run.py`, `ports/operator.py` | state machine done and tested; **engine never calls `hand_over`/`resume`**, no operator adapter, browser ownership unresolved |
 | 3.7 | Design (not build) for heterogeneous surfaces and multi-tenant reuse | `REPORT.md` §4 | **not written** |
 
@@ -42,8 +42,17 @@ Their warning, worth writing down because it is the one I designed around:
 > the discovery run has to be real. At least one genuine LLM-driven run against a
 > live surface, with the evidence in /evidence/ to show it happened.
 
-Everything else may be stubbed at a clean seam if I say so and say why. That one
-may not. It is the only hard external dependency in the project: a model key.
+Done, three times over, all with claude-sonnet-5 against the live Flask app:
+
+| run | outcome | what it shows |
+|---|---|---|
+| `discovery` | `goal_reached`, 5 steps | the artifact beside it replays unmodified, and for a member the run never saw |
+| `not_found` | `repeated_state`, 3 steps | the loop stops when the screen stops moving |
+| `signed_out` | `policy_refused`, 1 step | the credential guard firing, with the model's own rationale admitting it was guessing |
+
+The two that fail earn their place more than the one that works. A guardrail
+firing is a better record than a model happening to fail, which is what the
+same scenario produced before the rule existed.
 
 ## How they weight it
 

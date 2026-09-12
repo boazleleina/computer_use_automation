@@ -180,15 +180,13 @@ class Contract:
         return self.approval is Approval.APPROVED
 
     def __post_init__(self) -> None:
-        names = [output.name for output in self.outputs]
-        duplicated = sorted({name for name in names if names.count(name) > 1})
-        if duplicated:
-            raise MalformedArtifact(
-                f"output(s) {duplicated} are declared more than once; a caller "
-                "handed two values under one name cannot tell which it got"
-            )
+        """Two things a contract may not say, whatever else is true of it.
 
-        """A secret must not be an interface value of a capability.
+        Two outputs under one name, first. A caller handed two values called
+        savings_balance cannot tell which it got, and the compiler produced
+        exactly that from a run where the model read the same cell five times.
+
+        And a secret as an interface value.
 
         Checked here rather than at load time because this is not an authoring
         mistake that shows up on the first run. A contract declaring a secret
@@ -204,6 +202,13 @@ class Contract:
         Credentials reach the application through a person, at a keyboard, in a
         browser the run is already driving. They are never an argument.
         """
+        names = [output.name for output in self.outputs]
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        if duplicated:
+            raise MalformedArtifact(
+                f"output(s) {duplicated} are declared more than once; a caller "
+                "handed two values under one name cannot tell which it got"
+            )
         offenders = [spec.name for spec in self.inputs if spec.sensitivity is Sensitivity.SECRET]
         offenders += [spec.name for spec in self.outputs if spec.sensitivity is Sensitivity.SECRET]
         if offenders:

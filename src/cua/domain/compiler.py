@@ -127,7 +127,7 @@ def compile_capability(
         contract=contract,
         steps=steps,
         conditions=_conditions(trajectory, inputs),
-        success=_success(trajectory.steps[0].before, trajectory.steps[-1].after),
+        success=_success(trajectory.steps[0].before, trajectory.steps[-1].after, inputs),
     )
 
 
@@ -144,14 +144,17 @@ def _without_repeated_reads(steps: Sequence[ExecutedStep]) -> tuple[ExecutedStep
     part of a flow; reading the same cell twice cannot mean anything different
     the second time.
     """
-    seen: set[str] = set()
+    seen: set[tuple[str, str | None]] = set()
     kept: list[ExecutedStep] = []
     for step in steps:
-        if step.read_value is not None:
-            name = _output_name(step)
-            if name in seen:
+        if step.read_value is not None and step.node is not None:
+            # Keyed on the control, not on the name derived from it. Two
+            # different cells with no row header both name themselves "value",
+            # and collapsing those would drop a genuine second output.
+            cell = (step.node.ref.value, step.node.name)
+            if cell in seen:
                 continue
-            seen.add(name)
+            seen.add(cell)
         kept.append(step)
     return tuple(kept)
 
@@ -196,10 +199,18 @@ def _conditions(trajectory: Trajectory, inputs: Mapping[str, str]) -> tuple[Cond
         detectors = [Detector(kind=DetectorKind.URL_PATTERN, url_pattern=screen.url_pattern)]
         if heading is not None:
             detectors.append(
-                Detector(kind=DetectorKind.NODE_PRESENT, role=heading.role, name=heading.name)
+                Detector(
+                    kind=DetectorKind.NODE_PRESENT,
+                    role=heading.role,
+                    name=_parameterise(heading.name, inputs),
+                )
             )
 
-        name = _slug(heading.name) if heading and heading.name else _slug(screen.url_pattern)
+        # Parameterised before it becomes a name, for the same reason as the
+        # detector: a heading reading "Member 100045" would otherwise name a
+        # condition after one member and never match another.
+        landmark = _describe(heading.name, inputs) if heading and heading.name else None
+        name = _slug(landmark) if landmark else _slug(screen.url_pattern)
         conditions[key] = Condition(
             name=f"{name}_ready",
             outcome=Outcome.SUCCESS,
@@ -502,7 +513,9 @@ def _effect(trajectory: Trajectory) -> Effect:
     return Effect.MUTATING
 
 
-def _success(first: Observation, final: Observation) -> tuple[Detector, ...]:
+def _success(
+    first: Observation, final: Observation, inputs: Mapping[str, str]
+) -> tuple[Detector, ...]:
     """Where the capability has to end up.
 
     Route and a heading, both. Route alone is satisfied by an expired session,
@@ -529,7 +542,11 @@ def _success(first: Observation, final: Observation) -> tuple[Detector, ...]:
     )
     if heading is not None:
         detectors.append(
-            Detector(kind=DetectorKind.NODE_PRESENT, role=heading.role, name=heading.name)
+            Detector(
+                kind=DetectorKind.NODE_PRESENT,
+                role=heading.role,
+                name=_parameterise(heading.name, inputs),
+            )
         )
     return tuple(detectors)
 
