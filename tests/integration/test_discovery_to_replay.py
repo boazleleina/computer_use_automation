@@ -373,3 +373,24 @@ def test_the_artifact_read_back_off_disk_replays(compiled, target_app: str, tmp_
         "savings_balance": "4820.55",
         "account_name": "Test Member One",
     }
+
+
+def test_no_value_the_run_read_appears_in_the_artifact(compiled, discovered: Trajectory):
+    """A read step must not be named after what it read.
+
+    A value cell is named by its own contents, so deriving the step id from the
+    control wrote a member's balance and their account name into the artifact:
+    04_read_4820_55, 05_read_test_member_one. That file is committed, reviewed
+    and shared. The row header beside the cell says what the step is for
+    without saying whose it is.
+    """
+    document = json.dumps(capability_to_document(compiled))
+
+    for step in discovered.reads:
+        assert step.read_value is not None
+        assert step.read_value not in document
+
+    assert [s.id for s in compiled.steps][-2:] == [
+        "04_read_savings_balance",
+        "05_read_account_name",
+    ]

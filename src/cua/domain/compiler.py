@@ -230,12 +230,25 @@ def _step(executed: ExecutedStep, index: int, inputs: Mapping[str, str]) -> Step
 
 
 def _step_id(executed: ExecutedStep, index: int, action_type: ActionType) -> str:
-    """A name a reviewer can read, and a number so two cannot collide.
+    """A name a person can read, and a number so two cannot collide.
 
     Derived from the control rather than invented, so a diff between two
     recordings of the same flow lines up step by step.
+
+    A value cell is named by its own contents, so naming the step after the
+    control would put the data in the step id: 04_read_4820_55 and
+    05_read_test_member_one are a member's balance and their name, written into
+    a file that gets committed, reviewed and shared. The row header beside it
+    says what the step is for without saying whose it is, and reads better
+    anyway — 04_read_savings_balance is the name somebody would have chosen.
     """
-    subject = _slug(executed.node.name) if executed.node and executed.node.name else "screen"
+    node = executed.node
+    if node is None:
+        subject = "screen"
+    else:
+        anchor = _anchor_for(node, executed.before)
+        named = anchor.name if anchor is not None and anchor.name else node.name
+        subject = _slug(named) if named else "screen"
     return f"{index + 1:02d}_{action_type.value}_{subject}"
 
 
