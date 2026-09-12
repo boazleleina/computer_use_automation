@@ -1,36 +1,9 @@
-{"event": "discovery_started", "at": "2026-09-12T04:36:33.133769+00:00", "goal": "Look up member ****0045 and read their current savings balance and the name on the account.", "max_steps": 40, "run_ms": 900000}
-{"event": "observed", "at": "2026-09-12T04:36:33.170406+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
-{"event": "proposed", "at": "2026-09-12T04:36:34.934233+00:00", "step": 0, "kind": "act", "rationale": "Enter the operator user ID to begin signing on to the back-office system.", "action": "type", "value": "****ator", "target_role": "textbox", "target_name": "User Id"}
-{"event": "policy_check", "at": "2026-09-12T04:36:34.934792+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:35.196305+00:00", "action": "type", "value": "****ator"}
-{"event": "observed", "at": "2026-09-12T04:36:35.223374+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
-{"event": "proposed", "at": "2026-09-12T04:36:36.760640+00:00", "step": 1, "kind": "act", "rationale": "Enter the ****word to proceed with sign-on.", "action": "type", "value": "****word", "target_role": "textbox", "target_name": "Password"}
-{"event": "policy_check", "at": "2026-09-12T04:36:36.761397+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:37.047958+00:00", "action": "type", "value": "****word"}
-{"event": "observed", "at": "2026-09-12T04:36:37.078168+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
-{"event": "proposed", "at": "2026-09-12T04:36:39.252966+00:00", "step": 2, "kind": "act", "rationale": "Submit sign-on credentials to access the back-office system.", "action": "click", "value": null, "target_role": "button", "target_name": "Sign On"}
-{"event": "policy_check", "at": "2026-09-12T04:36:39.253702+00:00", "action": "click", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:39.578629+00:00", "action": "click", "value": null}
-{"event": "observed", "at": "2026-09-12T04:36:39.615073+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:41.197852+00:00", "step": 3, "kind": "act", "rationale": "Check the sign-on failure message to determine why login did not succeed before retrying.", "action": "read", "value": null, "target_role": "cell", "target_name": "Sign on failed. Check your user id and password."}
-{"event": "policy_check", "at": "2026-09-12T04:36:41.198357+00:00", "action": "read", "allowed": true, "rule": null, "reason": null}
-{"event": "read", "at": "2026-09-12T04:36:41.198610+00:00", "value": "****ord."}
-{"event": "observed", "at": "2026-09-12T04:36:41.221453+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:45.401941+00:00", "step": 4, "kind": "act", "rationale": "Re-enter the user ID since the previous sign-on attempt failed.", "action": "type", "value": "****ator", "target_role": "textbox", "target_name": "User Id"}
-{"event": "policy_check", "at": "2026-09-12T04:36:45.402793+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:45.663572+00:00", "action": "type", "value": "****ator"}
-{"event": "observed", "at": "2026-09-12T04:36:45.693222+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:47.239182+00:00", "step": 5, "kind": "act", "rationale": "Enter the ****word again to retry sign-on.", "action": "type", "value": "****word", "target_role": "textbox", "target_name": "Password"}
-{"event": "policy_check", "at": "2026-09-12T04:36:47.239582+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:47.497909+00:00", "action": "type", "value": "****word"}
-{"event": "observed", "at": "2026-09-12T04:36:47.528449+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:49.083221+00:00", "step": 6, "kind": "act", "rationale": "Retry sign-on with credentials re-entered.", "action": "click", "value": null, "target_role": "button", "target_name": "Sign On"}
-{"event": "policy_check", "at": "2026-09-12T04:36:49.084122+00:00", "action": "click", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:36:49.402888+00:00", "action": "click", "value": null}
-{"event": "observed", "at": "2026-09-12T04:36:49.434059+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:50.999945+00:00", "step": 7, "kind": "act", "rationale": "Check current state of the sign on fields before retrying again.", "action": "read", "value": null, "target_role": "cell", "target_name": "Sign on failed. Check your user id and password."}
-{"event": "policy_check", "at": "2026-09-12T04:36:51.000656+00:00", "action": "read", "allowed": true, "rule": null, "reason": null}
-{"event": "read", "at": "2026-09-12T04:36:51.001087+00:00", "value": "****ord."}
-{"event": "observed", "at": "2026-09-12T04:36:51.031321+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 9}
-{"event": "proposed", "at": "2026-09-12T04:36:52.564190+00:00", "step": 8, "kind": "stuck", "rationale": "Repeated sign-on attempts with the given credentials fail, blocking any further progress toward looking up the member.", "action": null, "value": null, "target_role": null, "target_name": null}
-{"event": "discovery_finished", "at": "2026-09-12T04:36:52.564904+00:00", "stopped_because": "model_stuck", "succeeded": false, "steps": 8}
+{"event": "discovery_started", "at": "2026-09-12T04:43:38.393689+00:00", "goal": "Look up member ****0045 and read their current savings balance and the name on the account.", "max_steps": 40, "run_ms": 900000}
+{"event": "observed", "at": "2026-09-12T04:43:38.438573+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
+{"event": "proposed", "at": "2026-09-12T04:43:40.207266+00:00", "step": 0, "kind": "act", "rationale": "Enter operator user id to begin sign on process.", "action": "type", "value": "****ator", "target_role": "textbox", "target_name": "User Id"}
+{"event": "policy_check", "at": "2026-09-12T04:43:40.207863+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
+{"event": "acted", "at": "2026-09-12T04:43:40.468864+00:00", "action": "type", "value": "****ator"}
+{"event": "observed", "at": "2026-09-12T04:43:40.500740+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
+{"event": "proposed", "at": "2026-09-12T04:43:42.266131+00:00", "step": 1, "kind": "act", "rationale": "Enter password to proceed with sign on.", "action": "type", "value": "****r_pw", "target_role": "textbox", "target_name": "Password"}
+{"event": "policy_check", "at": "2026-09-12T04:43:42.266915+00:00", "action": "type", "allowed": false, "rule": "secret_control", "reason": "'Password' holds a credential; signing on is a person's job and never the automation's"}
+{"event": "discovery_finished", "at": "2026-09-12T04:43:42.267426+00:00", "stopped_because": "policy_refused", "succeeded": false, "steps": 1}

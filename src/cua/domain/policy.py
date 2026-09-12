@@ -334,8 +334,8 @@ class Policy:
             return Denied(
                 rule=PolicyRule.SECRET_CONTROL,
                 reason=(
-                    f"{node.name or node.role!r} holds a credential; "
-                    "signing on is a person's job and never the automation's"
+                    f"{node.name or node.role!r} is a credential field; "
+                    "the session must be signed on before a run starts"
                 ),
             )
 
