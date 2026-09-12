@@ -204,3 +204,17 @@ def test_rules_can_be_tightened_without_touching_call_sites():
     )
     redacted = redact_event({"member_id": MEMBER_NUMBER}, DECLARED, strict)
     assert redacted["member_id"] is None
+
+
+def test_an_absent_value_is_not_masked_into_looking_present():
+    """Nothing to hide is not the same as something hidden.
+
+    A click carries no value. Masking the absence of one wrote "****" into the
+    record, which reads as a value that was entered and withheld — the same
+    kind of lie that dropping the key instead of the value would tell, pointed
+    the other way.
+    """
+    redacted = redact_event({"member_id": None}, DECLARED, RULES)
+
+    assert "member_id" in redacted
+    assert redacted["member_id"] is None

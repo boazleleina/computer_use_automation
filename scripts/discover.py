@@ -21,6 +21,7 @@ one, because Contract refuses to be constructed with a secret input, and the
 discovery loop is handed a session that is already signed on.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -33,6 +34,13 @@ from werkzeug.serving import make_server
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from dotenv import find_dotenv, load_dotenv  # noqa: E402
+
+# Before anything reads the environment. target_app loads .env too, but it is
+# imported inside serve(), which runs after the key check below — so without
+# this the key sits in .env and the script reports it missing.
+load_dotenv(find_dotenv(usecwd=True))
 
 from cua.adapters.claude_model import ClaudeModel, anthropic_client  # noqa: E402
 from cua.adapters.clocks import RealClock  # noqa: E402
@@ -50,12 +58,15 @@ from cua.domain.policy import (  # noqa: E402
     mask,
 )
 
-MEMBER_ID = "100045"
-GOAL = (
-    f"Look up member {MEMBER_ID} and read their current savings balance "
-    "and the name on the account."
-)
+DEFAULT_MEMBER = "100045"
 RUN_ID = "discovery"
+
+
+def goal_for(member_id: str) -> str:
+    return (
+        f"Look up member {member_id} and read their current savings balance "
+        "and the name on the account."
+    )
 
 EVIDENCE = Path("evidence")
 
@@ -96,10 +107,13 @@ DECLARED = {
     "stopped_because": Sensitivity.INTERNAL,
     "succeeded": Sensitivity.INTERNAL,
     "steps": Sensitivity.INTERNAL,
-    # The two that carry member data. A typed member number and the name of a
-    # control named after one are both the member, so both are masked.
+    # A typed value is the member number often enough to treat it as one.
     "value": Sensitivity.PERSONAL,
-    "target_name": Sensitivity.PERSONAL,
+    # A control name is the application's own vocabulary — "Member Number",
+    # "Find" — so recording it is how the log stays readable. The one case
+    # where it is member data is the result row named after the member, and
+    # the leak backstop drops that field without blinding every other name.
+    "target_name": Sensitivity.INTERNAL,
 }
 
 
@@ -140,7 +154,43 @@ def sign_on(surface: object, base_url: str) -> None:
     page.wait_for_url(f"{base_url}/search")
 
 
-def main() -> int:
+def options(argv: list[str] | None = None) -> argparse.Namespace:
+    """What varies between runs.
+
+    A discovery run is defined by where it starts and what it is asked for, so
+    both are arguments. Hard coding them meant one scenario could ever be
+    recorded, and the scenarios worth recording are the ones that do not go to
+    plan: a member who does not exist, a session nobody signed on.
+    """
+    parser = argparse.ArgumentParser(
+        prog="discover",
+        description="Run discovery against the target application with a real model.",
+    )
+    parser.add_argument(
+        "--member",
+        default=DEFAULT_MEMBER,
+        help=f"member number to look up (default: {DEFAULT_MEMBER}). "
+        "100099 does not exist; 100047 is restricted.",
+    )
+    parser.add_argument("--goal", default=None, help="override the goal text entirely")
+    parser.add_argument(
+        "--signed-out",
+        action="store_true",
+        help="skip sign on, so the run starts at a session nobody authenticated",
+    )
+    parser.add_argument(
+        "--run-id",
+        default=RUN_ID,
+        help=f"names the directory under evidence/ (default: {RUN_ID})",
+    )
+    parser.add_argument(
+        "--headless", action="store_true", help="do not open a browser window"
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = options(argv)
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise SystemExit(
@@ -158,9 +208,22 @@ def main() -> int:
     )
     print(f"model: {model.model}")
 
+    member_id = str(args.member)
+    goal = str(args.goal) if args.goal else goal_for(member_id)
+    print(f"goal : {goal}")
+    print(f"start: {'signed out' if args.signed_out else 'signed on'}")
+
     try:
-        with browser_session(base_url, headless=False, slow_mo_ms=250) as surface:
-            sign_on(surface, base_url)
+        with browser_session(
+            base_url, headless=bool(args.headless), slow_mo_ms=250
+        ) as surface:
+            if not args.signed_out:
+                sign_on(surface, base_url)
+            else:
+                # Straight to the search route without signing on. The
+                # application bounces it to /login, which is the screen the run
+                # then has to make sense of.
+                surface.page.goto(f"{base_url}/search")
             engine = DiscoverCapability(
                 surface=surface,
                 model=model,
@@ -173,7 +236,7 @@ def main() -> int:
                 clock=RealClock(),
                 evidence=sink,
             )
-            trajectory = engine.run(GOAL, run_id=RUN_ID)
+            trajectory = engine.run(goal, run_id=str(args.run_id))
     finally:
         server.shutdown()  # type: ignore[attr-defined]
 
@@ -185,9 +248,9 @@ def main() -> int:
     # the result row named after it. The events stream gets that treatment from
     # the sink; writing this one straight past the sink would put in the
     # deliverable exactly the data the sink exists to keep out of it.
-    (EVIDENCE / RUN_ID).mkdir(parents=True, exist_ok=True)
+    (EVIDENCE / str(args.run_id)).mkdir(parents=True, exist_ok=True)
     (EVIDENCE / RUN_ID / "transcript.json").write_text(
-        _masked(json.dumps(model.transcript, indent=2, default=str), {"member_id": MEMBER_ID}),
+        _masked(json.dumps(model.transcript, indent=2, default=str), {"member_id": member_id}),
         encoding="utf-8",
     )
 
@@ -205,7 +268,7 @@ def main() -> int:
         trajectory,
         name="lookup_member_balance",
         version="1.0.0",
-        inputs={"member_id": MEMBER_ID},
+        inputs={"member_id": member_id},
         app="riverside_cu_backoffice",
         release="4.2.11",
     )
@@ -214,7 +277,7 @@ def main() -> int:
         yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8"
     )
 
-    print(f"\nwrote {EVIDENCE / RUN_ID}/")
+    print(f"\nwrote {EVIDENCE / str(args.run_id)}/")
     return 0
 
 

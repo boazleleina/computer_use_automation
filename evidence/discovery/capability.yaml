@@ -1,0 +1,102 @@
+contract:
+  name: lookup_member_balance
+  version: 1.0.0
+  goal: Look up member {{ inputs.member_id }} and read their current savings balance
+    and the name on the account.
+  effect: mutating
+  approval: draft
+  preconditions: []
+  inputs:
+  - name: member_id
+    type: string
+    sensitivity: personal
+    required: true
+    pattern: ^[0-9]{6}$
+    description: Supplied per invocation. Recorded against a 6 digit value.
+  outputs: []
+  provenance:
+    source: discovered
+    author: discovery
+    app: riverside_cu_backoffice
+    release: 4.2.11
+    variant: base
+    note: Compiled from a discovery trajectory. The rationales in the run log are
+      the model's reasoning at the time; the targets below are this compiler's, rebuilt
+      from what each control was.
+steps:
+- id: 01_type_member_number
+  action_type: type
+  target:
+    intent: textbox 'Member Number'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: textbox
+      name: Member Number
+      brittle: false
+  value: '{{ inputs.member_id }}'
+  checkpoint:
+  - kind: field_value_equals
+    value: '{{ inputs.member_id }}'
+    target_ref: self
+- id: 02_click_find
+  action_type: click
+  target:
+    intent: button 'Find'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: button
+      name: Find
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: columnheader
+    name: Member No
+- id: 03_click_{{ inputs.member_id }}
+  action_type: click
+  target:
+    intent: link '{{ inputs.member_id }}'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: link
+      name: '{{ inputs.member_id }}'
+      brittle: false
+  checkpoint:
+  - kind: url_pattern_is
+    url_pattern: /members/{member_id}
+  - kind: node_present
+    role: heading
+    name: Member Detail
+conditions:
+- name: member_enquiry_ready
+  outcome: success
+  detectors:
+  - kind: url_pattern_is
+    url_pattern: /search
+  - kind: node_present
+    role: heading
+    name: Member Enquiry
+  detail: Member Services - Riverside CU Back Office at /search
+- name: member_detail_ready
+  outcome: success
+  detectors:
+  - kind: url_pattern_is
+    url_pattern: /members/{member_id}
+  - kind: node_present
+    role: heading
+    name: Member Detail
+  detail: Member Detail - Riverside CU Back Office at /members/{member_id}
+success:
+- kind: url_pattern_is
+  url_pattern: /members/{member_id}
+- kind: node_present
+  role: heading
+  name: Member Detail

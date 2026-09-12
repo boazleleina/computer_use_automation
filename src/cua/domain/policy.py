@@ -197,6 +197,14 @@ def _render(
     if rendering is Rendering.DROP:
         return None
     if rendering is Rendering.MASK:
+        # Nothing to hide is not the same as something hidden. A click carries
+        # no value, and masking the absence of one wrote "****" into the record,
+        # which reads as a value that was entered and withheld. The whole point
+        # of dropping to null rather than removing the key is that the record
+        # must not imply something happened; inventing a mask breaks that in
+        # the other direction.
+        if value is None:
+            return None
         return mask(str(value))
     if rendering is Rendering.RECORD:
         return value
