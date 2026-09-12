@@ -242,6 +242,28 @@ conditions:
     # the only thing separating this from the footer. SEC-0042 is a fixed
     # reference on the denial page and appears nowhere else.
 
+  - name: not_authenticated
+    outcome: intervention_required
+    detail: >
+      No session has been signed on. A person signs on in this same browser;
+      the automation does not hold credentials and cannot obtain one.
+    code: AUTHENTICATION_REQUIRED
+    resume_checkpoint: authenticated_session
+    detectors:
+      - kind: url_pattern_is
+        pattern: /login
+      - kind: node_present
+        role: textbox
+        name: Password
+    # Not the same screen as session_expired, which is why both exist. An
+    # expired session renders the sign-on form at the route of the page it
+    # replaced and returns 200 while doing it; a request with no session at all
+    # is redirected to /login and carries no banner. session_expired ANDs its
+    # detectors on that banner, so it matched neither, and a run against a
+    # never-signed-on session reported "no declared condition describes this
+    # screen" — safe, and useless to a caller trying to tell "log in" from
+    # "this artifact is stale".
+
   - name: session_expired
     outcome: intervention_required
     detail: >

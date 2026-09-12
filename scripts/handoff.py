@@ -144,7 +144,12 @@ def main() -> int:
         root=EVIDENCE,
         rules=RULES,
         declared=DECLARED,
-        known_values={MEMBER_ID: Sensitivity.PERSONAL},
+        known_values={
+            MEMBER_ID: Sensitivity.PERSONAL,
+            # The operator's own user id, rendered in the status bar of every
+            # screen. Invented here; a real one is an employee.
+            os.environ["TARGET_APP_USER"]: Sensitivity.PERSONAL,
+        },
         stream_name=f"{RUN_ID}.jsonl",
     )
 

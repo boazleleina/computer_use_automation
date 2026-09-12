@@ -215,20 +215,39 @@ def test_a_read_only_capability_needs_no_approval_to_run_unattended():
     assert isinstance(POLICY.may_run_unattended(Effect.READ_ONLY, approved=False), Allowed)
 
 
-@pytest.mark.parametrize("effect", [Effect.MUTATING, Effect.IRREVERSIBLE])
-def test_a_writing_capability_is_refused_until_it_has_been_approved(effect):
+def test_a_mutating_capability_is_refused_until_it_has_been_approved():
     """Writing a procedure down is only worth anything if somebody signs it off
     before it runs thousands of times."""
-    verdict = POLICY.may_run_unattended(effect, approved=False)
+    verdict = POLICY.may_run_unattended(Effect.MUTATING, approved=False)
 
     assert isinstance(verdict, Denied)
     assert verdict.rule is PolicyRule.APPROVAL_REQUIRED
-    assert effect.value in verdict.reason
+    assert Effect.MUTATING.value in verdict.reason
 
 
-@pytest.mark.parametrize("effect", [Effect.MUTATING, Effect.IRREVERSIBLE])
-def test_an_approved_writing_capability_may_run(effect):
-    assert isinstance(POLICY.may_run_unattended(effect, approved=True), Allowed)
+def test_an_approved_mutating_capability_may_run():
+    assert isinstance(POLICY.may_run_unattended(Effect.MUTATING, approved=True), Allowed)
+
+
+@pytest.mark.parametrize("approved", [False, True])
+def test_an_irreversible_capability_is_never_waved_through_by_approval(approved):
+    """The three classes are three classes, and this is what makes the third
+    one worth having.
+
+    Approval and confirmation answer different questions. Approval says the
+    procedure is correct — somebody read it once, months ago. Confirmation says
+    this invocation, on this member, right now, is one somebody meant to make.
+    No amount of reviewing a procedure makes a wrong account number the right
+    one, so for a flow that cannot be undone the first is not enough alone.
+
+    Refused either way. Whether a person is actually there is not something a
+    pure function can know, so it says no and leaves the engine to go and find
+    one through the operator channel.
+    """
+    verdict = POLICY.may_run_unattended(Effect.IRREVERSIBLE, approved=approved)
+
+    assert isinstance(verdict, Denied)
+    assert verdict.rule is PolicyRule.CONFIRMATION_REQUIRED
 
 
 def test_approval_is_asked_once_per_run_not_once_per_action():

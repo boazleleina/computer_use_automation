@@ -11,6 +11,11 @@ the model may choose from and the set Policy checks against cannot drift. An
 action nobody implements cannot be proposed, and it is refused again downstream
 anyway, which is the belt and the braces.
 
+A control the surface marks secret is rendered without its value. The model is
+told the field exists and is told nothing about what is in it, which is all it
+needs: it may not act on one anyway, because Policy refuses every action that
+addresses a credential field.
+
 Controls are addressed by their index in the observation the model was shown.
 Indices rather than the application's own ids because the application's ids are
 generated and meaningless, and rather than NodeRef values because those are
@@ -330,7 +335,15 @@ def _prompt(
         parts = [f"  [{index}] {node.role}"]
         if node.name:
             parts.append(f'"{node.name}"')
-        if node.text:
+        if node.secret:
+            # Never the value, whatever is in it. Chrome happens to report a
+            # password box as bullets, so today this changes nothing — which is
+            # exactly why it is worth writing down: the guarantee would
+            # otherwise be the browser's courtesy rather than this system's
+            # rule, and a surface that reported the real characters would put
+            # them in a prompt, a transcript and a provider's logs.
+            parts.append("= (withheld)")
+        elif node.text:
             parts.append(f"= {node.text!r}")
         if not node.enabled:
             parts.append("(disabled)")

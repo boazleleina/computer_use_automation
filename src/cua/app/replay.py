@@ -28,7 +28,7 @@ from cua.domain.errors import MalformedArtifact
 from cua.domain.intervention import InterventionRequest
 from cua.domain.observation import NodeRef, Observation
 from cua.domain.outcomes import Classification, Outcome, Result, classify
-from cua.domain.policy import Denied, Policy
+from cua.domain.policy import Denied, Policy, PolicyRule
 from cua.domain.resolution import Ambiguous, Resolved, resolve
 from cua.domain.run import EscalationReason, Run
 from cua.ports.clock import Clock
@@ -97,7 +97,7 @@ class ReplayCapability:
         state = _RunState(capability=capability, run_id=run_id, bound={}, run=None)
 
         gate = self.policy.may_run_unattended(contract.effect, approved=contract.approved)
-        if isinstance(gate, Denied):
+        if isinstance(gate, Denied) and not self._confirmed(state, gate):
             return self._refused_before_starting(state, gate)
 
         state.bound = _bind_inputs(capability, inputs)
@@ -168,6 +168,41 @@ class ReplayCapability:
         state.run = state.active.start_over()
         self._emit(state, "restarted", reason="a person rescued the run")
         return None
+
+    def _confirmed(self, state: "_RunState", gate: Denied) -> bool:
+        """Ask a person to confirm an irreversible invocation, if one is there.
+
+        Only for CONFIRMATION_REQUIRED, and the distinction is the point. A
+        capability that was never approved is refused and stays refused: nobody
+        at a terminal can substitute for the review it skipped. An irreversible
+        one that was approved is a different matter — the procedure has been
+        read, and what is missing is somebody saying yes to this invocation, on
+        this member, now.
+
+        Unattended and irreversible therefore means refused, which is the
+        conservative reading and the one worth defending: an operator channel
+        that is absent is not the same as an operator who agreed.
+        """
+        if gate.rule is not PolicyRule.CONFIRMATION_REQUIRED:
+            return False
+        if self.operator is None or not state.capability.contract.approved:
+            return False
+
+        contract = state.capability.contract
+        request = InterventionRequest(
+            run_id=state.run_id,
+            capability=contract.name,
+            version=contract.version,
+            goal=contract.goal,
+            reason=EscalationReason.APPROVAL_REQUIRED,
+            detail=gate.reason,
+            resume_checkpoint="confirmed_by_operator",
+        )
+        self._emit(state, "confirmation_requested", **request.summary())
+        self.operator.request_intervention(request)
+        handover = self.operator.await_release(state.run_id)
+        self._emit(state, "confirmed", actions=len(handover.events))
+        return True
 
     # ---- guards before the first step -------------------------------------
 
@@ -706,6 +741,7 @@ class ReplayCapability:
             condition_name=(
                 state.classification.condition_name if state.classification else None
             ),
+            code=state.classification.code if state.classification else None,
             outputs=dict(state.outputs),
             step_id=step.id if step is not None else None,
             expected=expected,
@@ -718,6 +754,7 @@ class ReplayCapability:
             "run_finished",
             outcome=result.outcome.value,
             condition=result.condition_name,
+            code=result.code,
             detail=result.detail,
             step=result.step_id,
             expected=result.expected,
