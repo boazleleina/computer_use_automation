@@ -17,6 +17,7 @@ record — but the trajectory is the permitted subset, so a capability compiled
 from it cannot contain a step that was not allowed when it was found.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from cua.domain.actions import ActionType, ProposalKind, ProposedAction
@@ -72,7 +73,6 @@ class DiscoverCapability:
 
     def run(self, goal: str, run_id: str) -> Trajectory:
         deadline = self.clock.monotonic_ms() + self.limits.run_ms
-        history: list[ProposedAction] = []
         steps: list[ExecutedStep] = []
 
         self._emit(
@@ -91,7 +91,7 @@ class DiscoverCapability:
             if bound is not None:
                 return self._finish(run_id, goal, steps, bound)
 
-            outcome = self._one_step(run_id, goal, observation, history, len(steps))
+            outcome = self._one_step(run_id, goal, observation, steps, len(steps))
             if isinstance(outcome, StopReason):
                 return self._finish(run_id, goal, steps, outcome)
 
@@ -108,15 +108,13 @@ class DiscoverCapability:
         run_id: str,
         goal: str,
         observation: Observation,
-        history: list[ProposedAction],
+        history: Sequence[ExecutedStep],
         taken: int,
     ) -> ExecutedStep | StopReason:
         """Ask, check, act. Either a step happened or the run is over."""
         proposal = self._propose(goal, observation, history)
         if isinstance(proposal, StopReason):
             return proposal
-
-        history.append(proposal)
 
         # Role and name, not the ref. A NodeRef belongs to one observation and
         # says nothing in a later run, so a transcript recorded with refs alone
@@ -143,7 +141,7 @@ class DiscoverCapability:
         return self._perform(run_id, proposal, observation)
 
     def _propose(
-        self, goal: str, observation: Observation, history: list[ProposedAction]
+        self, goal: str, observation: Observation, history: Sequence[ExecutedStep]
     ) -> ProposedAction | StopReason:
         """Ask the model, or stop because asking failed.
 

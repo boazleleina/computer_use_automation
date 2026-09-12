@@ -27,6 +27,7 @@ from cua.adapters.errors import ConfigurationError
 from cua.domain.actions import ActionType, ProposalKind, ProposedAction
 from cua.domain.errors import ModelError
 from cua.domain.observation import Observation
+from cua.domain.trajectory import ExecutedStep
 
 PROPOSED = "proposed"
 
@@ -61,7 +62,7 @@ class RecordedModel:
         self,
         goal: str,
         observation: Observation,
-        history: Sequence[ProposedAction],
+        history: Sequence[ExecutedStep],
     ) -> ProposedAction:
         """The next recorded proposal, bound to the screen in front of it.
 

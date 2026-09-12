@@ -13,7 +13,37 @@ contract:
     required: true
     pattern: ^[0-9]{6}$
     description: Supplied per invocation. Recorded against a 6 digit value.
-  outputs: []
+  outputs:
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: account_name
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
   provenance:
     source: discovered
     author: discovery
@@ -75,6 +105,120 @@ steps:
   - kind: node_present
     role: heading
     name: Member Detail
+- id: 04_read_4820_55
+  action_type: read
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Savings Balance
+  reads_into: savings_balance
+- id: 05_read_test_member_one
+  action_type: read
+  target:
+    intent: Value beside the 'Account Name' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Account Name
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Account Name
+  reads_into: account_name
+- id: 06_read_4820_55
+  action_type: read
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Savings Balance
+  reads_into: savings_balance
+- id: 07_read_4820_55
+  action_type: read
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Savings Balance
+  reads_into: savings_balance
+- id: 08_read_4820_55
+  action_type: read
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Savings Balance
+  reads_into: savings_balance
+- id: 09_read_4820_55
+  action_type: read
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+      brittle: false
+  checkpoint:
+  - kind: node_present
+    role: rowheader
+    name: Savings Balance
+  reads_into: savings_balance
 conditions:
 - name: member_enquiry_ready
   outcome: success

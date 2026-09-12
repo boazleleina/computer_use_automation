@@ -21,7 +21,7 @@ from enum import StrEnum
 
 from cua.domain.actions import ActionType, Effect
 from cua.domain.conditions import Condition, Detector
-from cua.domain.errors import UnsafeCapability
+from cua.domain.errors import MalformedArtifact, UnsafeCapability
 from cua.domain.observation import Rect
 from cua.domain.policy import Sensitivity
 
@@ -180,6 +180,14 @@ class Contract:
         return self.approval is Approval.APPROVED
 
     def __post_init__(self) -> None:
+        names = [output.name for output in self.outputs]
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        if duplicated:
+            raise MalformedArtifact(
+                f"output(s) {duplicated} are declared more than once; a caller "
+                "handed two values under one name cannot tell which it got"
+            )
+
         """A secret must not be an interface value of a capability.
 
         Checked here rather than at load time because this is not an authoring

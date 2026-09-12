@@ -26,7 +26,7 @@ thing a human approves and an approved artifact must not change under them.
 """
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from cua.domain.actions import ActionType, Effect
 from cua.domain.capability import (
@@ -91,10 +91,11 @@ def compile_capability(
             "in the recorded run and cannot be parameterised out of it"
         )
 
-    steps = tuple(
-        _step(executed, index, inputs) for index, executed in enumerate(trajectory.steps)
+    kept = _without_repeated_reads(trajectory.steps)
+    steps = tuple(_step(executed, index, inputs) for index, executed in enumerate(kept))
+    outputs = tuple(
+        _output(executed) for executed in kept if executed.read_value is not None
     )
-    outputs = tuple(_output(executed) for executed in trajectory.reads)
 
     contract = Contract(
         name=name,
@@ -128,6 +129,31 @@ def compile_capability(
         conditions=_conditions(trajectory, inputs),
         success=_success(trajectory.steps[0].before, trajectory.steps[-1].after),
     )
+
+
+def _without_repeated_reads(steps: Sequence[ExecutedStep]) -> tuple[ExecutedStep, ...]:
+    """Drop reads of a value the run has already taken.
+
+    A model that cannot see what a read returned will ask for the same cell
+    again — the loop is bounded by max_steps, so the run still ends, but the
+    trajectory carries the repetition. Compiling it produced five steps reading
+    one balance into five outputs with the same name, which Contract refuses
+    outright and which would be nonsense if it did not.
+
+    Only reads, and only repeats. Clicking the same button twice can be a real
+    part of a flow; reading the same cell twice cannot mean anything different
+    the second time.
+    """
+    seen: set[str] = set()
+    kept: list[ExecutedStep] = []
+    for step in steps:
+        if step.read_value is not None:
+            name = _output_name(step)
+            if name in seen:
+                continue
+            seen.add(name)
+        kept.append(step)
+    return tuple(kept)
 
 
 def _conditions(trajectory: Trajectory, inputs: Mapping[str, str]) -> tuple[Condition, ...]:

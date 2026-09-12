@@ -15,6 +15,7 @@ from typing import Protocol
 
 from cua.domain.actions import ProposedAction
 from cua.domain.observation import Observation
+from cua.domain.trajectory import ExecutedStep
 
 
 class Model(Protocol):
@@ -24,13 +25,19 @@ class Model(Protocol):
         self,
         goal: str,
         observation: Observation,
-        history: Sequence[ProposedAction],
+        history: Sequence[ExecutedStep],
     ) -> ProposedAction:
         """Propose one step.
 
-        `history` is passed explicitly rather than held inside the
-        implementation, so the same call with the same inputs is reproducible
-        and a recorded transcript can be replayed against it.
+        `history` is what was done, not what was proposed, and that distinction
+        is load bearing. A read changes nothing on screen, so a model shown only
+        its own proposals cannot tell a read it has already performed from one
+        it has not — it asks again, and again, until the step budget runs out.
+        What it needs to see is the value that came back.
+
+        It is passed explicitly rather than held inside the implementation, so
+        the same call with the same inputs is reproducible and a recorded
+        transcript can be replayed against it.
 
         Implementations own schema validation and malformed output retry. A
         caller receives a well formed proposal or a ModelError, never a partial

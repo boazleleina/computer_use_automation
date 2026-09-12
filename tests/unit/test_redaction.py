@@ -260,3 +260,24 @@ def test_an_absent_value_is_not_masked_into_looking_present():
 
     assert "member_id" in redacted
     assert redacted["member_id"] is None
+
+
+def test_a_run_identifier_is_masked_in_records_that_do_not_carry_it():
+    """The gap a live run found.
+
+    Field-name rendering only fires where the value sits in a classified field,
+    and the leak backstop only knows values the record itself declared. A click
+    records no value, so a rationale in that record naming the member had
+    nothing to be checked against and went to disk raw. The run knows its own
+    identifiers, so it says so once and every record is held to it.
+    """
+    event = {"step": f"clicked Find to look up member {MEMBER_NUMBER}"}
+
+    without = redact_event(event, DECLARED, RULES)
+    assert MEMBER_NUMBER in json.dumps(without)  # nothing in the record declared it
+
+    withknown = redact_event(
+        event, DECLARED, RULES, known={MEMBER_NUMBER: Sensitivity.PERSONAL}
+    )
+    assert MEMBER_NUMBER not in json.dumps(withknown)
+    assert withknown["step"] == "clicked Find to look up member ****0045"

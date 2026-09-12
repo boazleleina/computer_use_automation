@@ -63,6 +63,15 @@ class FilesystemEvidenceSink:
     root: Path
     rules: RedactionRules
     declared: Mapping[str, Sensitivity] = field(default_factory=dict)
+
+    # Literals this run is known to handle, by class — the member number it was
+    # asked about, say. Field-name rendering cannot catch those everywhere they
+    # turn up, because most records do not carry them in a classified field: a
+    # click records no value, so a rationale in that record naming the member
+    # has nothing in the record to be checked against. The run knows them from
+    # the moment it is given them, so it says so once here.
+    known_values: Mapping[str, Sensitivity] = field(default_factory=dict)
+
     stream_name: str = STREAM
 
     _closed: bool = field(default=False, init=False)
@@ -75,7 +84,7 @@ class FilesystemEvidenceSink:
         flushed is how a run that crashed leaves an empty file.
         """
         self._require_open()
-        redacted = redact_event(event, self.declared, self.rules)
+        redacted = redact_event(event, self.declared, self.rules, self.known_values)
         line = json.dumps(redacted, default=_unserialisable, sort_keys=False)
 
         path = self._run_dir(run_id) / _segment(self.stream_name, "stream name")

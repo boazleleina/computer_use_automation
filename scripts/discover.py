@@ -199,7 +199,13 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     base_url, server = serve()
-    sink = FilesystemEvidenceSink(root=EVIDENCE, rules=RULES, declared=DECLARED)
+    member_id = str(args.member)
+    sink = FilesystemEvidenceSink(
+        root=EVIDENCE,
+        rules=RULES,
+        declared=DECLARED,
+        known_values={member_id: Sensitivity.PERSONAL},
+    )
     chosen = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
     model = ClaudeModel(
         client=anthropic_client(key),
@@ -208,7 +214,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"model: {model.model}")
 
-    member_id = str(args.member)
     goal = str(args.goal) if args.goal else goal_for(member_id)
     print(f"goal : {goal}")
     print(f"start: {'signed out' if args.signed_out else 'signed on'}")

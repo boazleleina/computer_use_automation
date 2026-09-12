@@ -121,6 +121,7 @@ def redact_event(
     event: Mapping[str, object],
     declared: Mapping[str, Sensitivity],
     rules: RedactionRules,
+    known: Mapping[str, Sensitivity] | None = None,
 ) -> dict[str, object]:
     """Render one evidence record according to what the capability declared.
 
@@ -154,7 +155,15 @@ def redact_event(
     something else did.
     """
     rendered = {key: _render(key, value, declared, rules) for key, value in event.items()}
-    leaked = _sensitive_values(event, declared)
+
+    # What this record declared, plus what the run declared. The second half
+    # matters more than it looks: a record is only self-describing when it
+    # happens to carry the value in a classified field, and most do not. A
+    # click records no value at all, so a rationale in that record mentioning
+    # the member number had nothing to be compared against and went to disk
+    # raw. The run knows its own identifiers from the moment it is given them.
+    leaked = dict(known or {})
+    leaked |= _sensitive_values(event, declared)
     if not leaked:
         return rendered
     return {key: _contain(value, leaked) for key, value in rendered.items()}

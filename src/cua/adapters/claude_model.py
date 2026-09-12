@@ -31,6 +31,7 @@ from anthropic.types import MessageParam, ToolChoiceAnyParam, ToolParam
 from cua.domain.actions import ActionType, ProposalKind, ProposedAction
 from cua.domain.errors import ModelError
 from cua.domain.observation import Observation
+from cua.domain.trajectory import ExecutedStep
 
 # Retries for output that does not fit the schema. Two, because a model that
 # has produced garbage twice against the same screen is not one attempt away
@@ -169,7 +170,7 @@ class ClaudeModel:
         self,
         goal: str,
         observation: Observation,
-        history: Sequence[ProposedAction],
+        history: Sequence[ExecutedStep],
     ) -> ProposedAction:
         """One validated proposal, or a ModelError after retrying.
 
@@ -299,7 +300,7 @@ def _ref_at(target: object, observation: Observation) -> Any:
     return observation.nodes[target].ref
 
 
-def _prompt(goal: str, observation: Observation, history: Sequence[ProposedAction]) -> str:
+def _prompt(goal: str, observation: Observation, history: Sequence[ExecutedStep]) -> str:
     """What the model is shown. Structured, not chatty.
 
     The screen is rendered as a numbered list rather than as markup. Markup is
@@ -334,11 +335,21 @@ def _prompt(goal: str, observation: Observation, history: Sequence[ProposedActio
     return "\n".join(lines)
 
 
-def _summary(step: ProposedAction) -> str:
-    if step.action_type is None:
-        return f"{step.kind.value}: {step.rationale}"
-    value = f" {step.value!r}" if step.value else ""
-    return f"{step.action_type.value}{value}: {step.rationale}"
+def _summary(step: ExecutedStep) -> str:
+    """One line of history, including what a read gave back.
+
+    The value is the whole point. Without it a read looks identical to a read
+    that has not happened yet, and the model asks for it again.
+    """
+    proposal = step.proposal
+    if proposal.action_type is None:  # pragma: no cover - only acts are executed
+        return f"{proposal.kind.value}: {proposal.rationale}"
+
+    control = f" {step.node.name!r}" if step.node is not None and step.node.name else ""
+    if step.read_value is not None:
+        return f"{proposal.action_type.value}{control} -> {step.read_value!r}"
+    typed = f" {proposal.value!r}" if proposal.value else ""
+    return f"{proposal.action_type.value}{control}{typed}: {proposal.rationale}"
 
 
 def _messages(content: str) -> list[MessageParam]:

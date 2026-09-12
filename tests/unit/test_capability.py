@@ -9,6 +9,7 @@ import pytest
 
 from cua.domain.actions import ActionType, Effect
 from cua.domain.capability import (
+    Approval,
     Capability,
     Confidence,
     Contract,
@@ -273,3 +274,28 @@ def test_a_failed_result_says_what_it_expected_and_what_it_found():
     assert not result.ok
     assert result.expected and result.observed
     assert result.evidence_ref
+
+
+def test_two_outputs_cannot_share_a_name():
+    """A caller handed two values under one name cannot tell which it got.
+
+    Found by a live run: a model that could not see what a read returned asked
+    for the same cell five times, and the compiler faithfully declared five
+    outputs called savings_balance.
+    """
+    from cua.domain.errors import MalformedArtifact
+
+    with pytest.raises(MalformedArtifact):
+        Contract(
+            name="lookup",
+            version="1.0.0",
+            goal="g",
+            effect=Effect.READ_ONLY,
+            approval=Approval.DRAFT,
+            outputs=(
+                OutputSpec(name="savings_balance", type="string",
+                           sensitivity=Sensitivity.PERSONAL),
+                OutputSpec(name="savings_balance", type="string",
+                           sensitivity=Sensitivity.PERSONAL),
+            ),
+        )
