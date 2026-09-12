@@ -13,15 +13,19 @@ model:
   provider: anthropic
   name: claude-sonnet-5
   max_tokens: 4096
-  temperature: 0.0
 
 discovery:
   # Bounds on the run loop, not parameters of the model. They hold whichever
   # ModelPort implementation is wired in, including a recorded one, and replay
   # never reads this block at all.
   max_steps: 40                       # hard cap on actions in one run
-  stop_on_repeated_state: true        # the same screen twice means stuck
-  stop_on_policy_refusal: true        # a refusal ends the run, never a retry
+  run_ms: 900000                      # wall clock bound on the whole run
+  stop_on_repeated_state: true        # an action that changed nothing means stuck
+
+  # There is no stop_on_policy_refusal. A refusal always ends the run, so it is
+  # not a knob: a model that proposed a denied action proposes it again against
+  # the same screen, and continuing means either the same refusal forever or
+  # acting on the second guess. Neither is something to make configurable.
 
 policy:
   # Two independent layers, both always applied. Not a mode: an allowlist bounds
