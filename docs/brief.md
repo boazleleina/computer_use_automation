@@ -23,8 +23,8 @@ Their warning, worth writing down because it is the one I designed around:
 | 3.2 | Typed, versioned, serialisable artifact: ordered steps, how each target is identified + why, typed inputs, typed outputs, checkpoint | `domain/capability.py`, `domain/artifact.py`, `domain/compiler.py` | done; now emitted by the compiler, not only hand-written |
 | 3.3 | Deterministic replay, no model: stable targeting, verify checkpoint, return outputs, separate business outcome / recoverable / hard failure | `app/replay.py`, `domain/outcomes.py`, `domain/resolution.py` | done, proven on two surfaces |
 | 3.4 | Allowlist of routes and action types; risky vs reversible handled conservatively; never persist secrets or raw PII | `domain/policy.py` | done; three layers — action allowlist, `may_operate` on the screen, `SECRET_CONTROL` on the control |
-| 3.5 | Evidence: structured log of what it did and why, plus a richer signal on failure | `adapters/fs_evidence_sink.py` | log done and redacting; **screenshot on failure still only a port call** |
-| 3.6 | Escalation and handoff: detect stuck, route an intervention request with context, human takes over **the same live session**, control handed back, record what they did | `domain/run.py`, `ports/operator.py` | state machine done and tested; **engine never calls `hand_over`/`resume`**, no operator adapter, browser ownership unresolved |
+| 3.5 | Evidence: structured log of what it did and why, plus a richer signal on failure | `adapters/fs_evidence_sink.py` | done; JSON Lines, redacted at the boundary, screenshot captured on the screen that stopped a run |
+| 3.6 | Escalation and handoff: detect stuck, route an intervention request with context, human takes over **the same live session**, control handed back, record what they did | `domain/intervention.py`, `adapters/console_operator.py`, `adapters/browser_activity.py`, `app/replay.py` | done; one human-performed handover in `evidence/replay_handoff/` |
 | 3.7 | Design (not build) for heterogeneous surfaces and multi-tenant reuse | `REPORT.md` §4 | **not written** |
 
 ## Deliverables — exact paths, they said so

@@ -68,12 +68,18 @@ class Classification:
     condition that fired, not only the winner, so a success condition too weak
     to distinguish the screen it claimed shows up in the run record instead of
     passing unnoticed.
+
+    `code` is the artifact's stable name for this outcome — MEMBER_NOT_FOUND,
+    AUTHENTICATION_REQUIRED — and is the field a calling agent should branch
+    on. condition_name is the author's label for a screen and may be reworded
+    when somebody tidies the artifact; a code is a promise to the caller.
     """
 
     outcome: Outcome
     condition_name: str | None
     detail: str
     matched: tuple[str, ...] = ()
+    code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +101,11 @@ class Result:
     a weaker signal than it was compiled with is about to break there, and a
     single value for the whole run cannot say where.
 
+    `code` carries the artifact's stable name for a known outcome through to
+    the caller. Without it an agent has to branch on condition_name, which is
+    an author's label for a screen and is free to change when somebody rewords
+    the artifact — so the declared codes existed and nothing could read them.
+
     The same information goes to evidence as it happens. This is the summary a
     caller gets without reading the stream.
     """
@@ -105,6 +116,7 @@ class Result:
     outcome: Outcome
     detail: str
     condition_name: str | None = None
+    code: str | None = None
     outputs: Mapping[str, object] = field(default_factory=dict)
     step_id: str | None = None
     expected: str | None = None
@@ -153,5 +165,6 @@ def classify(observation: Observation, conditions: tuple[Condition, ...]) -> Cla
         condition_name=winner.name,
         detail=winner.detail,
         matched=tuple(c.name for c in matched),
+        code=winner.code,
     )
 

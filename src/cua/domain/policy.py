@@ -37,6 +37,7 @@ class PolicyRule(StrEnum):
     ORIGIN_NOT_ALLOWED = "origin_not_allowed"
     APPROVAL_REQUIRED = "approval_required"
     SECRET_CONTROL = "secret_control"
+    CONFIRMATION_REQUIRED = "confirmation_required"
 
 
 class Sensitivity(StrEnum):
@@ -442,6 +443,27 @@ class Policy:
         """
         if effect is Effect.READ_ONLY:
             return Allowed()
+
+        if effect is Effect.IRREVERSIBLE:
+            # Approval and confirmation answer different questions, and an
+            # irreversible capability needs both. Approval says the procedure
+            # is correct — somebody read it once, months ago. Confirmation says
+            # this invocation, on this member, right now, is one somebody meant
+            # to make. For a flow that cannot be undone the first is not enough
+            # on its own, and no amount of reviewing a procedure makes a wrong
+            # account number the right one.
+            #
+            # Refused here rather than waved through. Whether a person is
+            # actually present is the caller's to establish, and it does that
+            # by escalating this refusal through the operator channel.
+            return Denied(
+                rule=PolicyRule.CONFIRMATION_REQUIRED,
+                reason=(
+                    "an irreversible capability is confirmed per invocation, "
+                    "not once at approval time"
+                ),
+            )
+
         if approved:
             return Allowed()
         return Denied(

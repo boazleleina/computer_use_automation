@@ -229,7 +229,14 @@ def main(argv: list[str] | None = None) -> int:
         root=EVIDENCE,
         rules=RULES,
         declared=DECLARED,
-        known_values={member_id: Sensitivity.PERSONAL},
+        known_values={
+            member_id: Sensitivity.PERSONAL,
+            # The operator's own user id. It is rendered in this application's
+            # status bar, so it travels wherever a screen does — into a prompt,
+            # into a transcript, into a file somebody commits. Invented here;
+            # a real one is an employee, and an employee is a person.
+            os.environ["TARGET_APP_USER"]: Sensitivity.PERSONAL,
+        },
         # Named for what the run was, not for what the sink writes. A replay
         # stream sitting beside this one would be events.jsonl, and telling the
         # two apart by directory alone is a thing somebody gets wrong once.
@@ -291,7 +298,10 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = EVIDENCE / str(args.run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "transcript.json").write_text(
-        _masked(json.dumps(model.transcript, indent=2, default=str), {"member_id": member_id}),
+        _masked(
+            json.dumps(model.transcript, indent=2, default=str),
+            {"member_id": member_id, "operator": os.environ["TARGET_APP_USER"]},
+        ),
         encoding="utf-8",
     )
 

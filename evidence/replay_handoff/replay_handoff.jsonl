@@ -1,0 +1,62 @@
+{"event": "run_started", "at": "2026-09-12T06:04:59.436559+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "read_only", "approval": "draft"}
+{"event": "step_started", "at": "2026-09-12T06:04:59.500855+00:00", "step": "enter_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T06:04:59.536902+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:04:59.537181+00:00", "step": "enter_member_number", "intent": "Member Number search field", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:04:59.537309+00:00", "step": "enter_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:04:59.841820+00:00", "step": "enter_member_number", "action": "type", "value": "****0045"}
+{"event": "classified", "at": "2026-09-12T06:04:59.881560+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:04:59.881830+00:00", "step": "enter_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:04:59.881933+00:00", "step": "submit_lookup", "action": "click"}
+{"event": "classified", "at": "2026-09-12T06:04:59.911312+00:00", "step": "submit_lookup", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:04:59.911490+00:00", "step": "submit_lookup", "intent": "Find button in the Member Enquiry panel", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:04:59.911572+00:00", "step": "submit_lookup", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:05:00.272569+00:00", "step": "submit_lookup", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T06:05:00.320757+00:00", "step": "submit_lookup", "condition": "session_expired", "outcome": "intervention_required", "matched": ["session_expired"]}
+{"event": "intervention_requested", "at": "2026-09-12T06:05:00.347883+00:00", "run_id": "replay_handoff", "capability": "lookup_member_balance v1.0.0", "goal": "Look up a member by number and return their current savings balance.", "reason": "authentication_required", "detail": "The session aged out. A human must sign on in this same browser session; the automation does not hold credentials and will not attempt to.", "step": "submit_lookup", "resume_checkpoint": "authenticated_session", "url_pattern": "/search", "page_title": "Sign On - Riverside CU Back Office", "screenshot": "evidence://replay_handoff/submit_lookup-replay_handoff.png"}
+{"event": "handed_over", "at": "2026-09-12T06:05:00.351253+00:00", "owner": "human"}
+{"event": "human_action", "at": "2026-09-12T06:05:14.220100+00:00", "action": "navigate", "target": null, "value": null, "route": "/search"}
+{"event": "human_action", "at": "2026-09-12T06:05:14.220673+00:00", "action": "click", "target": "User Id", "value": null, "route": null}
+{"event": "human_action", "at": "2026-09-12T06:05:14.221121+00:00", "action": "input", "target": "User Id", "value": "****ller", "route": null}
+{"event": "human_action", "at": "2026-09-12T06:05:14.221432+00:00", "action": "click", "target": "Password", "value": null, "route": null}
+{"event": "human_action", "at": "2026-09-12T06:05:14.221698+00:00", "action": "sensitive_input", "target": "Password", "value": "[REDACTED]", "route": null}
+{"event": "human_action", "at": "2026-09-12T06:05:14.221824+00:00", "action": "click", "target": "ctl00$cph$btnSignOn", "value": null, "route": null}
+{"event": "human_action", "at": "2026-09-12T06:05:14.221919+00:00", "action": "navigate", "target": null, "value": null, "route": "/search"}
+{"event": "control_returned", "at": "2026-09-12T06:05:14.222034+00:00", "actions": 7}
+{"event": "resume_checked", "at": "2026-09-12T06:05:14.276944+00:00", "checkpoint": "authenticated_session", "holds": true, "url_pattern": "/search", "condition": "search_page_ready"}
+{"event": "restarted", "at": "2026-09-12T06:05:14.277254+00:00", "reason": "a person rescued the run"}
+{"event": "step_started", "at": "2026-09-12T06:05:14.277344+00:00", "step": "enter_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T06:05:14.307267+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:05:14.307487+00:00", "step": "enter_member_number", "intent": "Member Number search field", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:05:14.307583+00:00", "step": "enter_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:05:14.612365+00:00", "step": "enter_member_number", "action": "type", "value": "****0045"}
+{"event": "classified", "at": "2026-09-12T06:05:14.653492+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:05:14.653953+00:00", "step": "enter_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:05:14.654060+00:00", "step": "submit_lookup", "action": "click"}
+{"event": "classified", "at": "2026-09-12T06:05:14.684050+00:00", "step": "submit_lookup", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:05:14.684270+00:00", "step": "submit_lookup", "intent": "Find button in the Member Enquiry panel", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:05:14.684358+00:00", "step": "submit_lookup", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:05:15.038224+00:00", "step": "submit_lookup", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T06:05:15.110445+00:00", "step": "submit_lookup", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:05:15.110729+00:00", "step": "submit_lookup", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:05:15.111017+00:00", "step": "open_member", "action": "click"}
+{"event": "classified", "at": "2026-09-12T06:05:15.154165+00:00", "step": "open_member", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:05:15.154417+00:00", "step": "open_member", "intent": "The member number link in the result grid", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:05:15.154509+00:00", "step": "open_member", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:05:15.519248+00:00", "step": "open_member", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T06:05:15.604598+00:00", "step": "open_member", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:05:15.604865+00:00", "step": "open_member", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:05:15.605136+00:00", "step": "read_savings_balance", "action": "read"}
+{"event": "classified", "at": "2026-09-12T06:05:15.662923+00:00", "step": "read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:05:15.663157+00:00", "step": "read_savings_balance", "intent": "Value cell adjacent to the Savings Balance row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:05:15.663396+00:00", "step": "read_savings_balance", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T06:05:15.663513+00:00", "step": "read_savings_balance", "into": "savings_balance", "value": "****0.55"}
+{"event": "classified", "at": "2026-09-12T06:05:15.720982+00:00", "step": "read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:05:15.721260+00:00", "step": "read_savings_balance", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:05:15.721497+00:00", "step": "read_account_name", "action": "read"}
+{"event": "classified", "at": "2026-09-12T06:05:15.779697+00:00", "step": "read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:05:15.779947+00:00", "step": "read_account_name", "intent": "Value cell adjacent to the Account Name row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:05:15.780174+00:00", "step": "read_account_name", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T06:05:15.780275+00:00", "step": "read_account_name", "into": "account_name", "value": "**** One"}
+{"event": "classified", "at": "2026-09-12T06:05:15.836944+00:00", "step": "read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "classified", "at": "2026-09-12T06:05:15.894143+00:00", "step": null, "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "run_finished", "at": "2026-09-12T06:05:15.894464+00:00", "outcome": "success", "condition": "member_detail_ready", "detail": "the capability completed", "step": null, "expected": null, "observed": null, "evidence_ref": null, "run_state": "succeeded"}

@@ -61,6 +61,15 @@ class OperatorChannel(Protocol):
         The Handover is returned whether or not the run goes on to succeed. A
         record of what a person did to a member's account is worth keeping
         particularly when the run failed afterwards.
+
+        No deadline, and that is a decision rather than an omission. A console
+        operator blocks on a keypress and should: the person is sitting there,
+        and timing them out mid sign-on would abandon a run that was about to
+        be rescued. An implementation that nobody is watching — a queue, a
+        callback — needs a bound, and the honest place for it is that
+        implementation, because only it knows what waiting costs. What the
+        engine must not do is assume one and act while somebody is still
+        holding the session.
         """
         ...
 
