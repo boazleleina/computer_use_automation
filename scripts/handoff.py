@@ -19,6 +19,13 @@ prove the same thing more slowly.
 
 Nothing here is a special path through the engine. It is ReplayCapability with
 an operator wired in, running the same artifact the other tests run.
+
+The run directory is cleared before each attempt. A handover needs a person, so
+it usually takes a couple of goes to get one worth keeping, and the evidence
+sink appends — which is right for a run and wrong for a demonstration. Left to
+append, the record became three handovers in one file, none of which succeeded,
+reading as a single run behaving inexplicably. What ends up committed should be
+a handover somebody actually performed.
 """
 
 import json
@@ -121,6 +128,16 @@ def sign_on(page: object, base_url: str) -> None:
 
 
 def main() -> int:
+    # The sink appends, which is right for a run and wrong for a demonstration
+    # somebody runs three times before it goes the way they wanted. Without
+    # this the committed record was three handovers end to end in one file,
+    # none of which succeeded, and it read as one run behaving bizarrely.
+    run_dir = EVIDENCE / RUN_ID
+    if run_dir.exists():
+        for existing in run_dir.rglob("*"):
+            if existing.is_file():
+                existing.unlink()
+
     base_url, server = serve()
     capability = capability_from_document(yaml.safe_load(ARTIFACT.read_text(encoding="utf-8")))
     sink = FilesystemEvidenceSink(
