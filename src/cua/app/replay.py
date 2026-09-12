@@ -129,7 +129,11 @@ class ReplayCapability:
                 state.run = state.active.advance()
 
             if not restarted:
-                return self._finish(state)
+                finished = self._finish(state)
+                if finished is not RESTART and not isinstance(finished, _Restart):
+                    return finished
+                # The last screen was rescued too. Same question as any other
+                # rescue: may this capability begin again?
 
             refused = self._start_over(state)
             if refused is not None:
@@ -226,9 +230,10 @@ class ReplayCapability:
     def _run_step(self, state: "_RunState", step: Step) -> "Result | None | _Restart":
         """One step, or the Result that ends the run inside it.
 
-        A step that was rescued by a person hands RESTART back to the caller
-        rather than retrying itself, because what has to begin again is usually
-        the capability and not the step. The bound on that is the escalation
+        A step that was rescued by a person hands RESTART back to run(), which
+        begins the whole capability again through _start_over. Not the step:
+        the reason a run stopped is usually also a reason its earlier steps no
+        longer hold. The bound on that is the escalation
         budget: a second escalation for the same reason fails the run instead
         of asking again.
         """
@@ -634,7 +639,7 @@ class ReplayCapability:
             screenshot_ref=reference,
         )
 
-    def _finish(self, state: "_RunState") -> Result:
+    def _finish(self, state: "_RunState") -> "Result | _Restart":
         """Every step ran. The capability's own success check decides the rest.
 
         Settled like every other read of the screen. The last screen is exactly
@@ -645,9 +650,11 @@ class ReplayCapability:
         if isinstance(settled, Result):
             return settled
         if isinstance(settled, _Restart):
-            # The last screen was rescued by a person. Look again before
-            # declaring success on a page that changed while nobody watched.
-            return self._finish(state)
+            # Handed back to the run loop rather than recursing here. Recursing
+            # would skip _start_over, which is where the effect guard lives and
+            # the only thing deciding whether beginning again is safe at all —
+            # and nothing would have bounded the recursion either.
+            return settled
 
         for detector in state.capability.success:
             bound = _fill_detector(detector, state.bound)

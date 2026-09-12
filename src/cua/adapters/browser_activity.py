@@ -42,8 +42,16 @@ LISTENER = """
         const byId = el.id && document.querySelector(`label[for="${el.id}"]`);
         const wrapping = el.closest && el.closest('label');
         const labelled = (byId || wrapping) && (byId || wrapping).textContent;
-        return (labelled || el.getAttribute('aria-label') || el.name
-                || el.value || el.textContent || '').trim().slice(0, 120) || null;
+        // el.value is the last resort for naming an unlabelled control, and it
+        // is never consulted for a password box. On a sign on form with no
+        // label, aria-label or name, that fallback would have named the
+        // control after the credential typed into it and sent it out as the
+        // target — past every guard, because nothing downstream expects a
+        // secret to arrive in that field.
+        const secret = el.type === 'password';
+        const fallback = secret ? '' : (el.name || el.value || el.textContent || '');
+        const named = labelled || el.getAttribute('aria-label') || fallback;
+        return (named || '').trim().slice(0, 120) || (secret ? 'password field' : null);
     };
 
     document.addEventListener('click', (event) => {
@@ -105,8 +113,13 @@ class BrowserActivity:
         with contextlib.suppress(Exception):
             self.page.expose_binding(BINDING, self._reported)
         # Both: once for the page as it stands, and once for every page the
-        # person navigates to afterwards.
-        self.page.add_init_script(f"() => window.{BINDING} && ({LISTENER})(window.{BINDING})")
+        # person navigates to afterwards. Guarded like the other two: failing
+        # to install the watcher costs a record, and raising here would cost
+        # the handover itself, which is the more expensive of the two.
+        with contextlib.suppress(Exception):
+            self.page.add_init_script(
+                f"() => window.{BINDING} && ({LISTENER})(window.{BINDING})"
+            )
         self._install()
 
     def stop(self) -> list[HumanEvent]:
@@ -119,7 +132,15 @@ class BrowserActivity:
     # ---- the two sources ---------------------------------------------------
 
     def _reported(self, source: dict[str, Any], payload: dict[str, Any]) -> None:
-        """One event from the page. `source` is Playwright's frame context."""
+        """One event from the page. `source` is Playwright's frame context.
+
+        Dropped unless recording is open. The binding outlives a handover — it
+        is installed once per page and cannot be uninstalled — so a callback
+        that arrives after control came back would attribute the automation's
+        own next click to the person who has already walked away.
+        """
+        if not self._watching:
+            return
         action = HumanAction(str(payload.get("action", "click")))
         self._events.append(
             HumanEvent(

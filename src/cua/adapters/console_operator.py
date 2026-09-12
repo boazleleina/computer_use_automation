@@ -12,6 +12,7 @@ nothing else. That is the point of it being an adapter, and it is the reason
 the request arrives as an assembled value rather than as a rendered message.
 """
 
+import contextlib
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -107,7 +108,12 @@ class ConsoleOperator:
 
         events: list[HumanEvent] = []
         if self.activity is not None:
-            events = list(self.activity.stop())
+            # Best effort. If the person closed the window, stopping the
+            # watcher raises — and losing the record of what they did is bad,
+            # while losing the control transfer on top of it is worse. The run
+            # still gets to re-observe and decide.
+            with contextlib.suppress(Exception):
+                events = list(self.activity.stop())
 
         print(f"  control returned after {len(events)} recorded action(s)\n", file=self.out)
         self._released = events
