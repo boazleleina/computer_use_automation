@@ -1,16 +1,17 @@
-{"event": "run_started", "at": "2026-09-12T06:37:49.111921+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "mutating", "approval": "approved"}
-{"event": "step_started", "at": "2026-09-12T06:37:49.112699+00:00", "step": "01_type_member_number", "action": "type"}
-{"event": "classified", "at": "2026-09-12T06:37:49.168353+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:37:49.168614+00:00", "step": "01_type_member_number", "intent": "textbox 'Member Number'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:37:49.168708+00:00", "step": "01_type_member_number", "action": "type", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:37:49.172106+00:00", "step": "01_type_member_number", "action": "type", "value": "****0099"}
-{"event": "classified", "at": "2026-09-12T06:37:49.205119+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:37:49.205439+00:00", "step": "01_type_member_number", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:37:49.205552+00:00", "step": "02_click_find", "action": "click"}
-{"event": "classified", "at": "2026-09-12T06:37:49.235850+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:37:49.236076+00:00", "step": "02_click_find", "intent": "button 'Find'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:37:49.236170+00:00", "step": "02_click_find", "action": "click", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:37:49.258268+00:00", "step": "02_click_find", "action": "click", "value": null}
-{"event": "classified", "at": "2026-09-12T06:37:49.306471+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:37:49.306742+00:00", "step": "02_click_find", "held": false, "expected": "columnheader named 'Member No'"}
-{"event": "run_finished", "at": "2026-09-12T06:37:49.325660+00:00", "outcome": "hard_failure", "condition": "member_enquiry_ready", "code": null, "detail": "02_click_find did not leave the application where it was expected", "step": "02_click_find", "expected": "columnheader named 'Member No'", "observed": "Member Services - Riverside CU Back Office at /search", "evidence_ref": "evidence://replay_not_found/02_click_find-replay_not_found.png", "run_state": "failed"}
+{"event": "approval_assumed", "artifact_approval": "draft", "source": "scripts/replay_demo.py", "detail": "no review record was consulted; a reviewer did not approve this version"}
+{"event": "run_started", "at": "2026-09-12T06:58:23.402634+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "mutating", "approval": "approved"}
+{"event": "step_started", "at": "2026-09-12T06:58:23.402888+00:00", "step": "01_type_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T06:58:23.443268+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:58:23.443488+00:00", "step": "01_type_member_number", "intent": "textbox 'Member Number'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:58:23.443546+00:00", "step": "01_type_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:58:23.446004+00:00", "step": "01_type_member_number", "action": "type", "value": "****0099"}
+{"event": "classified", "at": "2026-09-12T06:58:23.469820+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:58:23.470007+00:00", "step": "01_type_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T06:58:23.470073+00:00", "step": "02_click_find", "action": "click"}
+{"event": "classified", "at": "2026-09-12T06:58:23.491913+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T06:58:23.492064+00:00", "step": "02_click_find", "intent": "button 'Find'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T06:58:23.492125+00:00", "step": "02_click_find", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T06:58:23.508964+00:00", "step": "02_click_find", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T06:58:23.542779+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T06:58:23.542963+00:00", "step": "02_click_find", "held": false, "expected": "columnheader named 'Member No'"}
+{"event": "run_finished", "at": "2026-09-12T06:58:23.555361+00:00", "outcome": "hard_failure", "condition": "member_enquiry_ready", "code": null, "detail": "02_click_find did not leave the application where it was expected", "step": "02_click_find", "expected": "columnheader named 'Member No'", "observed": "Member Services - Riverside CU Back Office at /search", "evidence_ref": "evidence://replay_not_found/02_click_find-replay_not_found.png", "run_state": "failed"}

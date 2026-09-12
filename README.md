@@ -176,7 +176,7 @@ Replay a capability against the target application:
 .venv/bin/python -m cua.cli replay \
   --artifact evidence/discovery/capability.yaml \
   --input member_id=100045 \
-  --approve
+  --assume-approved
 ```
 
 ```
@@ -191,13 +191,18 @@ parameterised rather than recorded:
 
 ```bash
 .venv/bin/python -m cua.cli replay --artifact evidence/discovery/capability.yaml \
-  --input member_id=100046 --approve
+  --input member_id=100046 --assume-approved
 # savings_balance = 12.40, account_name = Test Member Two
 ```
 
-Omitting `--approve` refuses the run before the application is touched. A
-capability produced by a model has not been reviewed by anyone, and approval is
-the record that somebody did.
+Omitting `--assume-approved` refuses the run before the application is touched.
+A capability produced by a model has not been reviewed by anyone, and approval
+is the record that somebody did.
+
+The flag exists because this demonstration has no artifact store to hold a real
+approval. It is written into the run record as an assumption — `approval_assumed`
+names the artifact's actual state and states that no review was consulted — so
+the evidence does not claim a review that did not happen.
 
 **Exit codes**
 
@@ -300,7 +305,7 @@ src/cua/domain/          business rules — standard library only, no I/O
 src/cua/ports/           the six interfaces the domain declares
 src/cua/adapters/        technology: browser, model SDK, filesystem, console
 src/cua/app/             use cases — sequence, not decisions
-src/cua/composition.py   the only module permitted to import adapters
+src/cua/composition.py   wires adapters to ports; the only module in the package that may
 src/cua/cli.py           argument parsing and exit codes
 
 target_app/              the legacy application under automation
@@ -309,8 +314,14 @@ scripts/                 the operations requiring a person to be present
 ```
 
 The dependency arrow points inward and is enforced by test. Nothing under
-`domain/` imports outside the standard library; CI verifies this by importing
-every domain module into a virtual environment with no packages installed.
+`domain/` imports outside the standard library — CI verifies this by importing
+every domain module into a virtual environment with no packages installed — and
+nothing under `domain/`, `ports/` or `app/` names an adapter.
+
+The scripts in `scripts/` do import adapters, because an entry point composes by
+definition, exactly as `composition.py` does inside the package. What they may
+not do is contain decisions, and a test asserts they do not reach into a use
+case's internals.
 
 ## Licence
 

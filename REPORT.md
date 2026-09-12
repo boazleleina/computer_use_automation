@@ -9,7 +9,9 @@ A **hexagonal architecture** — ports and adapters — with the dependency arro
 pointing inward and enforced by test. `domain/` imports the standard library and
 nothing else; CI verifies this by importing every domain module into a virtual
 environment with no packages installed, since the test suite runs where every
-dependency is present and so proves nothing about it.
+dependency is present and so proves nothing about it. Nothing under `domain/`,
+`ports/` or `app/` names an adapter; `composition.py` and the entry points in
+`scripts/` do the wiring, which is what an entry point is for.
 
 Six ports are declared, all `Protocol` rather than ABC, so an adapter never
 imports a domain base class and cannot inherit behaviour from one.

@@ -119,3 +119,35 @@ def test_only_the_composition_root_and_adapters_import_adapters() -> None:
         "only composition.py and modules under adapters/ may import adapters; "
         f"found {offenders}"
     )
+
+
+def test_the_scripts_are_entry_points_and_compose_like_one() -> None:
+    """The scripts import adapters, and that is what an entry point does.
+
+    Worth stating rather than leaving to be discovered. The rule is that the
+    layers *above* adapters — domain, ports and app — are written against ports
+    and cannot name a technology. A script is not one of those layers: it is a
+    top level program that chooses implementations and hands them to a use case,
+    which is the same job composition.py does inside the package.
+
+    What this asserts is the part that would actually be a defect: a script may
+    wire adapters, and it may not contain decisions. None of them imports the
+    replay or discovery internals, so the sequence of a run stays in app/ where
+    a test can drive it without a browser.
+    """
+    scripts = SRC.parent / "scripts"
+    if not scripts.is_dir():  # pragma: no cover - the directory is committed
+        return
+
+    reaching_inside = []
+    for path in python_files(scripts):
+        modules = imported_modules(path)
+        # Importing the use case is right. Importing its private helpers would
+        # mean the script had started to reimplement the loop.
+        if any(m.startswith("cua.app.") and m.count(".") > 2 for m in modules):
+            reaching_inside.append(str(path.name))
+
+    assert not reaching_inside, (
+        "a script may wire adapters, but reaching into a use case means the "
+        f"sequence of a run has leaked out of app/; found {reaching_inside}"
+    )

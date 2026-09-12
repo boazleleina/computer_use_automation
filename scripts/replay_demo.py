@@ -74,7 +74,7 @@ DECLARED = {
         "condition", "code", "outcome", "matched", "held", "intent", "via_signal",
         "signal_index", "allowed", "rule", "reason", "detail", "url_pattern",
         "page_title", "run_state", "expected", "observed", "into", "evidence_ref",
-        "attempt", "resolved_via",
+        "attempt", "resolved_via", "artifact_approval", "source",
     )
 } | {"value": Sensitivity.PERSONAL}
 
@@ -117,14 +117,6 @@ def main() -> int:
             capability = capability_from_document(
                 yaml.safe_load(artifact.read_text(encoding="utf-8"))
             )
-            # Approved here, standing in for the reviewer. The compiler marks a
-            # discovered artifact draft on purpose, and a draft does not run
-            # unattended.
-            approved = replace(
-                capability,
-                contract=replace(capability.contract, approval=Approval.APPROVED),
-            )
-
             directory = EVIDENCE / run_id
             if directory.exists():
                 for existing in directory.rglob("*"):
@@ -140,6 +132,27 @@ def main() -> int:
                     os.environ["TARGET_APP_USER"]: Sensitivity.PERSONAL,
                 },
                 stream_name=f"{run_id}.jsonl",
+            )
+
+            # Proceeding as though a reviewer had approved this version. The
+            # compiler marks a discovered artifact draft on purpose and a draft
+            # does not run unattended, so a demonstration has to assert it —
+            # but the record says so rather than implying somebody read it.
+            sink.append(
+                run_id,
+                {
+                    "event": "approval_assumed",
+                    "artifact_approval": capability.contract.approval.value,
+                    "source": "scripts/replay_demo.py",
+                    "detail": (
+                        "no review record was consulted; a reviewer did not "
+                        "approve this version"
+                    ),
+                },
+            )
+            approved = replace(
+                capability,
+                contract=replace(capability.contract, approval=Approval.APPROVED),
             )
 
             reset(base_url)

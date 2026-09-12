@@ -79,9 +79,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     replay.add_argument("--run-id", default="cli", help="names the evidence directory")
     replay.add_argument(
-        "--approve",
+        "--assume-approved",
         action="store_true",
-        help="treat the artifact as approved for this run, as a reviewer would",
+        help=(
+            "proceed as though a reviewer had approved this artifact. For "
+            "demonstration only; it is recorded as an assumption, not a review"
+        ),
     )
 
     return parser
@@ -121,8 +124,7 @@ def _replay(args: argparse.Namespace) -> int:
     capability = capability_from_document(document)
 
     inputs = _inputs(args.input)
-    if args.approve:
-        capability = _approved(capability)
+    assumed = bool(args.assume_approved)
 
     sink = evidence_sink(
         settings,
@@ -132,6 +134,26 @@ def _replay(args: argparse.Namespace) -> int:
         known_values=dict.fromkeys(inputs.values(), Sensitivity.PERSONAL),
         stream_name=f"{args.run_id}.jsonl",
     )
+
+    if assumed:
+        # Written before the run, and it names the artifact's real state. The
+        # engine needs an approved contract to proceed, so the override has to
+        # happen — but a record saying "approval: approved" for a capability
+        # nobody read is a false statement in evidence, and evidence is the
+        # thing this system exists to produce.
+        sink.append(
+            args.run_id,
+            {
+                "event": "approval_assumed",
+                "artifact_approval": capability.contract.approval.value,
+                "source": "--assume-approved",
+                "detail": (
+                    "no review record was consulted; a reviewer did not approve "
+                    "this version"
+                ),
+            },
+        )
+        capability = _approved(capability)
 
     with surface_session(settings) as surface:
         result = ReplayCapability(
@@ -171,12 +193,17 @@ def _inputs(pairs: Sequence[str]) -> dict[str, str]:
 
 
 def _approved(capability: Capability) -> Capability:
-    """Stand in for a reviewer, and say so.
+    """Proceed as though a reviewer had approved this version.
 
-    A flag rather than an edit to the file, because approval belongs to a
-    version of an artifact and flipping it in place would make the approved
-    thing and the reviewed thing two different documents. For a demonstration
-    this is the honest shortcut; in production the store holds the approval.
+    In production an approval belongs to an artifact store: it is recorded
+    against a version by somebody who read that version, and a caller cannot
+    assert it. This flag exists so the demonstration can run without a store,
+    and the run record says so — `approval_assumed` names the artifact's actual
+    state and the fact that no review was consulted.
+
+    In memory rather than written back to the file, because flipping approval
+    in place would make the approved document and the reviewed document two
+    different things.
     """
     from dataclasses import replace
 
