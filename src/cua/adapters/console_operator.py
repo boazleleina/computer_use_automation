@@ -22,7 +22,7 @@ from cua.ports.operator import HumanActivity
 
 RULE = "─" * 72
 
-PROMPT = "Take the browser, do what is needed, then press Enter to hand it back: "
+PROMPT = "  >>> Press Enter here to hand the run back: "
 
 
 @dataclass
@@ -70,7 +70,19 @@ class ConsoleOperator:
             "  rather than letting it act on a screen it did not expect.",
             file=self.out,
         )
+        print(RULE, file=self.out)
+        print("  1. The browser window is yours. Put the run right there.", file=self.out)
+        print(
+            "  2. COME BACK TO THIS TERMINAL and press Enter. Nothing happens\n"
+            "     until you do — this process is waiting on that keypress, and\n"
+            "     the browser gives you no sign of it.",
+            file=self.out,
+        )
         print(f"{RULE}\n", file=self.out)
+        # The browser has focus by now and this terminal is behind it. Flushed
+        # rather than left to buffer, because a prompt nobody sees reads as a
+        # handover that hung.
+        self.out.flush()
 
         if self.activity is not None:
             # Started only now. The automation's own actions are already in the
