@@ -319,3 +319,52 @@ def test_an_ordinary_field_beside_a_password_is_unaffected():
     )
 
     assert isinstance(policy.evaluate(ActionType.TYPE, user_id), Allowed)
+
+
+def test_a_run_may_not_operate_a_screen_it_is_not_allowed_to_be_on():
+    """The gap that let a discovery run type into a sign on form.
+
+    evaluate() asks where an action would take the run. Nothing it proposed had
+    a destination — typing into a field goes nowhere — so no route check ever
+    fired, and the page it was standing on was never anybody's question.
+    """
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/search", "/members/{member_id}"),
+        allowed_actions=frozenset(ActionType),
+        denied_controls=(),
+    )
+
+    assert isinstance(policy.may_operate("/search"), Allowed)
+    assert isinstance(policy.may_operate("/members/{member_id}"), Allowed)
+
+    verdict = policy.may_operate("/login")
+    assert isinstance(verdict, Denied)
+    assert verdict.rule is PolicyRule.ROUTE_NOT_ALLOWED
+
+
+def test_operating_a_screen_and_acting_on_it_are_separate_questions():
+    """Neither implies the other, which is why both are asked.
+
+    A control with no destination passes every route check evaluate() makes,
+    on a page the run should never have reached.
+    """
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/search",),
+        allowed_actions=frozenset({ActionType.TYPE}),
+        denied_controls=(),
+    )
+    user_id = Node(
+        ref=NodeRef(observation_id="obs_1", value="main:2"),
+        role="textbox",
+        name="User Id",
+        text=None,
+        frame_id="main",
+        bounds=Rect(x=0.0, y=0.0, width=10.0, height=10.0),
+        enabled=True,
+        visible=True,
+    )
+
+    assert isinstance(policy.evaluate(ActionType.TYPE, user_id), Allowed)
+    assert isinstance(policy.may_operate("/login"), Denied)

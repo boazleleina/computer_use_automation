@@ -73,7 +73,13 @@ EVIDENCE = Path("evidence")
 # What the run is allowed to do. The same rules replay runs under, because a
 # discovery run permitted to go somewhere replay is not would compile a
 # capability that cannot execute.
-ROUTES = ("/login", "/search", "/members/{member_id}")
+# /login is deliberately absent. A discovery run operates a session it was
+# handed and never creates one, so the sign on page is not a screen it has any
+# business on — and a run that finds itself there has been bounced, which is
+# worth stopping for rather than working around. sign_on() is unaffected: it
+# drives the browser directly and never consults policy, which is the point of
+# it standing outside the system.
+ROUTES = ("/search", "/members/{member_id}")
 ACTIONS = frozenset({ActionType.CLICK, ActionType.TYPE, ActionType.READ})
 
 RULES = RedactionRules(

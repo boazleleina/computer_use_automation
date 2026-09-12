@@ -356,6 +356,31 @@ class Policy:
 
         return Allowed()
 
+    def may_operate(self, route: str) -> Verdict:
+        """Whether the run may touch the screen it is currently standing on.
+
+        A different question from evaluate(), which asks where an action would
+        take the run. Both are needed and neither implies the other: the route
+        allowlist governed destinations and navigate targets, so a run that
+        arrived somewhere unlisted — redirected, bounced, timed out — could
+        operate that screen freely, because no individual action was going
+        anywhere new.
+
+        That gap is how a discovery run came to be typing a guessed user id
+        into a sign on form. Nothing it proposed had a destination, so nothing
+        was checked, and the page it was standing on was never anybody's
+        question.
+
+        Asked once per screen rather than once per action, because the answer
+        cannot differ between two actions on the same page.
+        """
+        if route not in self.allowed_routes:
+            return Denied(
+                rule=PolicyRule.ROUTE_NOT_ALLOWED,
+                reason=f"the run is on {route!r}, which is not in the allowlist",
+            )
+        return Allowed()
+
     def may_run_unattended(self, effect: Effect, approved: bool) -> Verdict:
         """Whether a capability of this risk class may run with nobody watching.
 

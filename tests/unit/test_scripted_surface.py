@@ -313,7 +313,12 @@ def test_the_budget_says_what_is_left_not_what_was_configured(member_detail):
         surface=ScriptedSurface([member_detail]),
         model=Watching(),
         policy=Policy(
-            allowed_origins=(), allowed_routes=(), allowed_actions=frozenset(), denied_controls=()
+            allowed_origins=(),
+            # The screen the script starts on has to be one the run may
+            # operate, or it stops before it asks the model anything.
+            allowed_routes=(member_detail.url_pattern,),
+            allowed_actions=frozenset(),
+            denied_controls=(),
         ),
         clock=FakeClock(),
         limits=DiscoveryLimits(max_steps=40, run_ms=900_000),

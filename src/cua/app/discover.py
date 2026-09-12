@@ -91,6 +91,22 @@ class DiscoverCapability:
             if bound is not None:
                 return self._finish(run_id, goal, steps, bound)
 
+            standing = self.policy.may_operate(observation.url_pattern)
+            if isinstance(standing, Denied):
+                # Checked on the screen rather than on the action, because an
+                # action that goes nowhere passes every route check there is.
+                # A run that has been bounced to a page it may not operate
+                # stops here, before it proposes anything about it.
+                self._emit(
+                    run_id,
+                    "policy_check",
+                    url_pattern=observation.url_pattern,
+                    allowed=False,
+                    rule=standing.rule.value,
+                    reason=standing.reason,
+                )
+                return self._finish(run_id, goal, steps, StopReason.POLICY_REFUSED)
+
             outcome = self._one_step(
                 run_id, goal, observation, steps, self._budget(len(steps), deadline)
             )
