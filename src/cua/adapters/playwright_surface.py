@@ -155,6 +155,11 @@ class PlaywrightSurface:
             self._run(lambda: locator.fill(value or "", timeout=self._timeout))
         elif action_type is ActionType.SELECT:
             self._run(lambda: locator.select_option(value or "", timeout=self._timeout))
+        else:
+            # NAVIGATE and READ returned above, so reaching here means the
+            # vocabulary grew and this surface was not taught the new word.
+            # Silently doing nothing would report the step as having worked.
+            raise SurfaceError(f"this surface cannot perform {action_type.value}")
 
     def read(self, node_ref: NodeRef) -> str:
         """The value of one control, as a person would read it off the screen.

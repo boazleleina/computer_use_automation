@@ -58,8 +58,8 @@ def test_it_satisfies_the_port(sink):
 
 
 def test_each_record_is_one_line(sink, tmp_path):
-    """A reviewer follows a live run with tail -f, and a run that dies half way
-    through still leaves a file that parses."""
+    """A run in progress can be followed with tail -f, and a run that dies half
+    way through still leaves a file that parses."""
     sink.append("run_1", {"event": "run_started"})
     sink.append("run_1", {"event": "step_started", "step": "enter_member_number"})
     sink.append("run_1", {"event": "run_finished"})

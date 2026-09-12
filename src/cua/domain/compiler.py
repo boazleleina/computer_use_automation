@@ -82,6 +82,15 @@ def compile_capability(
     if not trajectory.steps:
         raise MalformedArtifact("a capability with no steps does nothing")
 
+    # An empty literal matches between every pair of characters, so str.replace
+    # would scatter the placeholder through every description in the artifact.
+    empty = sorted(name for name, literal in inputs.items() if not literal)
+    if empty:
+        raise MalformedArtifact(
+            f"input(s) {empty} were bound to an empty value, which names no literal "
+            "in the recorded run and cannot be parameterised out of it"
+        )
+
     steps = tuple(
         _step(executed, index, inputs) for index, executed in enumerate(trajectory.steps)
     )
@@ -116,12 +125,12 @@ def compile_capability(
     return Capability(
         contract=contract,
         steps=steps,
-        conditions=_conditions(trajectory),
+        conditions=_conditions(trajectory, inputs),
         success=_success(trajectory.steps[0].before, trajectory.steps[-1].after),
     )
 
 
-def _conditions(trajectory: Trajectory) -> tuple[Condition, ...]:
+def _conditions(trajectory: Trajectory, inputs: Mapping[str, str]) -> tuple[Condition, ...]:
     """One condition per screen the run legitimately passed through.
 
     Not optional, and not padding. The replay engine treats a screen no
@@ -169,7 +178,7 @@ def _conditions(trajectory: Trajectory) -> tuple[Condition, ...]:
             name=f"{name}_ready",
             outcome=Outcome.SUCCESS,
             detectors=tuple(detectors),
-            detail=f"{screen.page_title} at {screen.url_pattern}",
+            detail=_describe(f"{screen.page_title} at {screen.url_pattern}", inputs),
         )
 
     return tuple(conditions.values())
@@ -451,8 +460,6 @@ def _effect(trajectory: Trajectory) -> Effect:
     }
     if touched <= {ActionType.READ, ActionType.NAVIGATE}:
         return Effect.READ_ONLY
-    if touched & {ActionType.TYPE, ActionType.SELECT, ActionType.CLICK}:
-        return Effect.MUTATING
     return Effect.MUTATING
 
 

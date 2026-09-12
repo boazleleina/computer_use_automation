@@ -8,7 +8,7 @@ redaction were their job it would be right in thirteen places and wrong in the
 fourteenth, and the fourteenth is the leak.
 
 JSON Lines rather than one JSON document. A run that dies half way through
-still leaves a readable file, and a reviewer can follow a live run with `tail
+still leaves a readable file, and a run in progress can be followed with `tail
 -f`. A single array would have to be closed to parse, which means the records
 worth reading most — the ones from the run that crashed — would be the ones
 that cannot be read.

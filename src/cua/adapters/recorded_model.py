@@ -2,14 +2,14 @@
 
 Reads the `proposed` records out of a discovery transcript and hands them back
 in order. Satisfies the Model port, so the discovery loop cannot tell it from
-the real thing — which is the point twice over: the loop gets tested without an
-API key or a network, and a reviewer can run the discovery path offline and see
-the same decisions the live run made.
+the real thing, and the loop, the policy checks and the compiler can all be
+exercised without a network or a billing account.
 
-Not a stand-in for the live run. The brief requires a genuine model-driven run
-and this is not one; it replays the record of one. What it proves is that the
-loop, the policy checks and the compiler behave the same way given the same
-decisions, which is the part that should not need a credit card to verify.
+This is not a model and must not be mistaken for one. It makes no decisions; it
+repeats decisions a model already made against a real application. A green
+suite here says the machinery around the model is correct, and says nothing at
+all about whether the model can find its way through a screen it has not seen.
+That question only a live run answers.
 
 Targets are rebound rather than replayed. A recorded NodeRef names a node in an
 observation that no longer exists, so matching by ref would fail on the first

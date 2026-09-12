@@ -118,6 +118,18 @@ TOOLS: list[ToolParam] = [ACT_TOOL, COMPLETE_TOOL, STUCK_TOOL]
 # receive rather than one it has to detect and reject.
 ANY_TOOL: ToolChoiceAnyParam = {"type": "any"}
 
+
+class MalformedResponse(ModelError):
+    """The model answered, and the answer is not a proposal.
+
+    Separate from the other reasons a call fails, because it is the only one
+    worth asking again about. A bad API key or an exhausted rate limit is not a
+    thing the model can fix by being told what was wrong with its last reply,
+    and retrying those twice just makes the same failure take three times as
+    long to report.
+    """
+
+
 KIND_BY_TOOL = {
     "act": ProposalKind.ACT,
     "complete": ProposalKind.COMPLETE,
@@ -130,14 +142,19 @@ class ClaudeModel:
     """One model, one call per proposal."""
 
     client: Anthropic
-    model: str = "claude-sonnet-5"
+
+    # No default. Which model ran is part of what a discovery run has to be
+    # able to state afterwards, and a default here would be a second place the
+    # answer lives — config.yaml says it, and a dataclass quietly disagreeing
+    # is how a run gets attributed to a model that never saw it.
+    model: str
     max_tokens: int = 4096
 
-    # No temperature. The SDK does not take one, and chasing determinism at the
-    # sampling knob would be the wrong fix anyway: discovery is allowed to be
-    # non-deterministic, which is precisely why its output is an artifact a
-    # person reviews rather than a decision made fresh on every invocation.
-    # Determinism is replay's property, and replay has no model in it.
+    # No temperature. The typed signature in the SDK version pinned here does
+    # not expose one, and reaching around it would be the wrong fix anyway:
+    # discovery is allowed to be non-deterministic, which is precisely why its
+    # output is an artifact a person reviews rather than a decision made fresh
+    # on every invocation. Determinism belongs to replay, which has no model.
 
     # Kept so a transcript can be written alongside the trajectory. The raw
     # exchange is the model's own record and belongs apart from what the
@@ -161,14 +178,15 @@ class ClaudeModel:
         complaint: str | None = None
 
         for attempt in range(MALFORMED_RETRIES + 1):
-            block = self._call(prompt, complaint, attempt)
             try:
+                block = self._call(prompt, complaint, attempt)
                 return _proposal_from(block, observation)
-            except ModelError as error:
+            except MalformedResponse as error:
+                # Bad shape. Say what was wrong and ask again — the complaint
+                # is the whole reason a second attempt might differ. The reply
+                # itself is already in the transcript, recorded by _call.
                 complaint = str(error)
-                self.transcript.append(
-                    {"attempt": attempt, "rejected": complaint, "input": block.get("input")}
-                )
+                self.transcript.append({"attempt": attempt, "rejected": complaint})
 
         raise ModelError(
             f"the model produced output that does not fit the schema "
@@ -208,7 +226,7 @@ class ClaudeModel:
         for block in response.content:
             if block.type == "tool_use":
                 return {"name": block.name, "input": block.input}
-        raise ModelError("the response contained no tool call")
+        raise MalformedResponse("the response contained no tool call")
 
 
 def _proposal_from(block: Mapping[str, Any], observation: Observation) -> ProposedAction:
@@ -222,15 +240,17 @@ def _proposal_from(block: Mapping[str, Any], observation: Observation) -> Propos
     name = str(block.get("name"))
     kind = KIND_BY_TOOL.get(name)
     if kind is None:
-        raise ModelError(f"unknown tool {name!r}")
+        raise MalformedResponse(f"unknown tool {name!r}")
 
     payload = block.get("input")
     if not isinstance(payload, Mapping):
-        raise ModelError(f"tool {name!r} was called with {type(payload).__name__}, not an object")
+        raise MalformedResponse(
+            f"tool {name!r} was called with {type(payload).__name__}, not an object"
+        )
 
     rationale = str(payload.get("rationale") or "").strip()
     if not rationale:
-        raise ModelError(f"tool {name!r} was called without a rationale")
+        raise MalformedResponse(f"tool {name!r} was called without a rationale")
 
     if kind is not ProposalKind.ACT:
         return ProposedAction(kind=kind, rationale=rationale)
@@ -238,12 +258,12 @@ def _proposal_from(block: Mapping[str, Any], observation: Observation) -> Propos
     try:
         action_type = ActionType(str(payload.get("action")))
     except ValueError as error:
-        raise ModelError(f"{payload.get('action')!r} is not an action") from error
+        raise MalformedResponse(f"{payload.get('action')!r} is not an action") from error
 
     value = payload.get("value")
     if action_type is ActionType.NAVIGATE:
         if not value:
-            raise ModelError("navigate was proposed with no route")
+            raise MalformedResponse("navigate was proposed with no route")
         return ProposedAction(
             kind=kind, rationale=rationale, action_type=action_type, value=str(value)
         )
@@ -266,9 +286,9 @@ def _ref_at(target: object, observation: Observation) -> Any:
     told the range.
     """
     if not isinstance(target, int) or isinstance(target, bool):
-        raise ModelError(f"target {target!r} is not a control index")
+        raise MalformedResponse(f"target {target!r} is not a control index")
     if not 0 <= target < len(observation.nodes):
-        raise ModelError(
+        raise MalformedResponse(
             f"there is no control {target} on this screen; "
             f"the indices run 0 to {len(observation.nodes) - 1}"
         )

@@ -221,7 +221,11 @@ def _positive_int(value: Any, label: str) -> int:
     `2.9` becomes 2. An author who wrote either meant something, and silently
     rounding it is worse than telling them it is not a bound.
     """
-    if isinstance(value, bool) or (isinstance(value, float) and value != int(value)):
+    # is_integer rather than a comparison against int(value): infinity and nan
+    # cannot be converted at all, so the comparison raises OverflowError and
+    # ValueError out of this function instead of the MalformedArtifact the
+    # caller is prepared for.
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
         raise MalformedArtifact(f"{label} must be a whole number, not {value!r}")
     try:
         number = int(value)

@@ -14,9 +14,11 @@ What it leaves behind, under evidence/<run_id>/:
     transcript.json     the raw model exchange, kept apart from the above
     capability.yaml     the compiled artifact
 
-A person signs the session on before the loop starts. The automation never
-holds the credential, and no capability can declare one: Contract refuses to be
-constructed with a secret input.
+This script signs the session on before the loop starts, standing in for the
+operator who would do it in production. The credential is read from the
+environment here and never enters the system proper: no capability can declare
+one, because Contract refuses to be constructed with a secret input, and the
+discovery loop is handed a session that is already signed on.
 """
 
 import json
@@ -45,6 +47,7 @@ from cua.domain.policy import (  # noqa: E402
     RedactionRules,
     Rendering,
     Sensitivity,
+    mask,
 )
 
 MEMBER_ID = "100045"
@@ -100,6 +103,21 @@ DECLARED = {
 }
 
 
+def settings(path: Path) -> dict[str, object]:
+    """The model block out of config.yaml.
+
+    Read here rather than defaulted in the adapter so there is one answer to
+    "which model ran", and it is in the file that is committed next to the
+    evidence. When composition.py exists this is the sort of thing it does for
+    every adapter; until then the script reads the one block it needs.
+    """
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    model = document.get("model") if isinstance(document, dict) else None
+    if not isinstance(model, dict) or not model.get("name"):
+        raise SystemExit(f"{path} has no model.name; nothing says which model to run")
+    return model
+
+
 def serve() -> tuple[str, object]:
     """The target application, on a free port, for the length of this run."""
     os.environ.setdefault("TARGET_APP_USER", "tmiller")
@@ -126,13 +144,19 @@ def main() -> int:
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise SystemExit(
-            "ANTHROPIC_API_KEY is not set. This is the one step that cannot be "
-            "stubbed: the discovery run has to be real."
+            "ANTHROPIC_API_KEY is not set. Discovery needs a model; replay does "
+            "not, which is why only this path asks for one."
         )
 
     base_url, server = serve()
     sink = FilesystemEvidenceSink(root=EVIDENCE, rules=RULES, declared=DECLARED)
-    model = ClaudeModel(client=anthropic_client(key))
+    chosen = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
+    model = ClaudeModel(
+        client=anthropic_client(key),
+        model=str(chosen["name"]),
+        max_tokens=int(chosen.get("max_tokens", 4096)),  # type: ignore[call-overload]
+    )
+    print(f"model: {model.model}")
 
     try:
         with browser_session(base_url, headless=False, slow_mo_ms=250) as surface:
@@ -155,9 +179,16 @@ def main() -> int:
 
     # The model's own record, kept apart from what the application had done to
     # it. One is what was said; the other is what happened.
+    #
+    # Masked before it is written. Every prompt in here contains the screen as
+    # the model saw it, which means the member number typed into the field and
+    # the result row named after it. The events stream gets that treatment from
+    # the sink; writing this one straight past the sink would put in the
+    # deliverable exactly the data the sink exists to keep out of it.
     (EVIDENCE / RUN_ID).mkdir(parents=True, exist_ok=True)
     (EVIDENCE / RUN_ID / "transcript.json").write_text(
-        json.dumps(model.transcript, indent=2, default=str), encoding="utf-8"
+        _masked(json.dumps(model.transcript, indent=2, default=str), {"member_id": MEMBER_ID}),
+        encoding="utf-8",
     )
 
     print(f"stopped because: {trajectory.stopped_because.value}")
@@ -187,6 +218,19 @@ def main() -> int:
     return 0
 
 
+def _masked(text: str, inputs: dict[str, str]) -> str:
+    """Replace declared personal literals with the same mask the sink applies.
+
+    The sink renders by field name, which cannot work on a blob of free text
+    where the member number sits inside a prompt. What is known here is which
+    literals were personal, because this script chose them — so the same
+    knowledge that drives redaction drives this.
+    """
+    for literal in inputs.values():
+        text = text.replace(literal, mask(literal))
+    return text
+
+
 def _document(capability: object) -> dict[str, object]:
     """The capability as a plain document, in the vocabulary the loader reads.
 
@@ -194,8 +238,9 @@ def _document(capability: object) -> dict[str, object]:
     Writing a second serialiser by hand is how the thing that is saved drifts
     from the thing that was compiled.
     """
-    raw = asdict(capability)  # type: ignore[call-overload]
-    return _plain(raw)
+    plain = _plain(asdict(capability))  # type: ignore[call-overload]
+    assert isinstance(plain, dict)
+    return plain
 
 
 def _plain(value: object) -> object:

@@ -9,15 +9,21 @@ Nothing is hand-edited between the compile and the replay. If a step had to be
 fixed up in between, the compiler would not be producing artifacts, it would be
 producing drafts of them, and the claim the system rests on would be false.
 
-The model here is recorded rather than live. The decisions it replays came from
-a real run and the genuine LLM run is committed under evidence/, but a suite
-that needed an API key and a network to prove the compiler works would not be
-run by anybody, including me.
+The model here is recorded rather than live. What is under test is the
+machinery around the decisions — the loop, the policy checks, the compiler —
+and that machinery behaves identically whoever made them, so putting a network
+call and a billing account in front of every run of this suite would buy
+nothing and cost enough that the suite stops being run.
+
+What this therefore does not cover: whether a model can find its way through a
+screen it has not seen. Only a live run answers that, and evidence/ holds one.
 """
 
+import json
 import os
 import threading
 from collections.abc import Iterator
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -158,7 +164,7 @@ def test_the_literal_became_a_parameter(compiled):
     and not in the name of the result row that gets clicked, which is named
     after the member number itself.
     """
-    document = yaml.safe_dump(_as_document(compiled))
+    document = _as_document(compiled)
 
     assert MEMBER_ID not in document
     assert "{{ inputs.member_id }}" in document
@@ -293,31 +299,12 @@ def _strongest(step) -> SignalKind | None:
     return step.target.signals[0].kind if step.target else None
 
 
-def _as_document(capability) -> dict[str, object]:
-    """The artifact as it would be written, for the substring assertions.
+def _as_document(capability) -> str:
+    """The whole artifact as text, for the leak assertion.
 
-    Serialised rather than walked, because "the member number is nowhere in the
-    file" is a claim about the file.
+    Every field, not a chosen few. A leak check that inspects the parts I
+    thought to list proves only that I thought of the right parts, and the
+    member number turning up in a page title inside a condition detail is
+    exactly the kind of place nobody lists.
     """
-    return {
-        "steps": [
-            {
-                "id": step.id,
-                "action": step.action_type.value,
-                "value": step.value,
-                "target": None
-                if step.target is None
-                else [
-                    {"kind": s.kind.value, "role": s.role, "name": s.name}
-                    for s in step.target.signals
-                ],
-                "checkpoint": [
-                    {"kind": d.kind.value, "value": d.value, "name": d.name}
-                    for d in step.checkpoint
-                ],
-            }
-            for step in capability.steps
-        ],
-        "inputs": [i.name for i in capability.contract.inputs],
-        "outputs": [o.name for o in capability.contract.outputs],
-    }
+    return json.dumps(asdict(capability), default=str)
