@@ -72,6 +72,12 @@ result.
 Three replays, produced by `scripts/replay_demo.py`. No model is constructed in
 any of them and none could be reached.
 
+Each record opens with `approval_assumed`. A discovered artifact is marked
+`draft`, a draft does not run unattended, and this demonstration has no artifact
+store holding a real approval — so the script asserts one. The record names the
+artifact's actual state and states that no review was consulted, rather than
+reporting an approval nobody gave.
+
 The first runs the compiled artifact against a member who exists and returns the
 balance and the account name.
 

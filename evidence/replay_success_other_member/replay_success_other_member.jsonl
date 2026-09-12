@@ -1,0 +1,39 @@
+{"event": "approval_assumed", "artifact_approval": "draft", "source": "scripts/replay_demo.py", "detail": "no review record was consulted; a reviewer did not approve this version"}
+{"event": "run_started", "at": "2026-09-12T07:09:26.593973+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "mutating", "approval": "approved"}
+{"event": "step_started", "at": "2026-09-12T07:09:26.594240+00:00", "step": "01_type_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T07:09:26.633718+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.633947+00:00", "step": "01_type_member_number", "intent": "textbox 'Member Number'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.634018+00:00", "step": "01_type_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:26.636407+00:00", "step": "01_type_member_number", "action": "type", "value": "****0046"}
+{"event": "classified", "at": "2026-09-12T07:09:26.660216+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.660369+00:00", "step": "01_type_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.660429+00:00", "step": "02_click_find", "action": "click"}
+{"event": "classified", "at": "2026-09-12T07:09:26.682433+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.682601+00:00", "step": "02_click_find", "intent": "button 'Find'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.682665+00:00", "step": "02_click_find", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:26.703400+00:00", "step": "02_click_find", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T07:09:26.746536+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.746736+00:00", "step": "02_click_find", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.746801+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click"}
+{"event": "classified", "at": "2026-09-12T07:09:26.778743+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.778927+00:00", "step": "03_click_{{ inputs.member_id }}", "intent": "link '{{ inputs.member_id }}'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.778998+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:26.788768+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T07:09:26.843366+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.843576+00:00", "step": "03_click_{{ inputs.member_id }}", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.843830+00:00", "step": "04_read_savings_balance", "action": "read"}
+{"event": "classified", "at": "2026-09-12T07:09:26.886415+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.886581+00:00", "step": "04_read_savings_balance", "intent": "Value beside the 'Savings Balance' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.886685+00:00", "step": "04_read_savings_balance", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T07:09:26.886743+00:00", "step": "04_read_savings_balance", "into": "savings_balance", "value": "****2.40"}
+{"event": "classified", "at": "2026-09-12T07:09:26.929489+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.929686+00:00", "step": "04_read_savings_balance", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.929760+00:00", "step": "05_read_account_name", "action": "read"}
+{"event": "classified", "at": "2026-09-12T07:09:26.972161+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.972312+00:00", "step": "05_read_account_name", "intent": "Value beside the 'Account Name' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.972371+00:00", "step": "05_read_account_name", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T07:09:26.972426+00:00", "step": "05_read_account_name", "into": "account_name", "value": "**** Two"}
+{"event": "classified", "at": "2026-09-12T07:09:27.014383+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:27.014529+00:00", "step": "05_read_account_name", "held": true}
+{"event": "classified", "at": "2026-09-12T07:09:27.056409+00:00", "step": null, "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "run_finished", "at": "2026-09-12T07:09:27.056610+00:00", "outcome": "success", "condition": "member_detail_ready", "code": null, "detail": "the capability completed", "step": null, "expected": null, "observed": null, "evidence_ref": null, "run_state": "succeeded"}

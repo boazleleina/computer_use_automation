@@ -9,7 +9,9 @@ A **hexagonal architecture** — ports and adapters — with the dependency arro
 pointing inward and enforced by test. `domain/` imports the standard library and
 nothing else; CI verifies this by importing every domain module into a virtual
 environment with no packages installed, since the test suite runs where every
-dependency is present and so proves nothing about it.
+dependency is present and so proves nothing about it. Nothing under `domain/`,
+`ports/` or `app/` names an adapter; `composition.py` and the entry points in
+`scripts/` do the wiring, which is what an entry point is for.
 
 Six ports are declared, all `Protocol` rather than ABC, so an adapter never
 imports a domain base class and cannot inherit behaviour from one.
@@ -287,7 +289,12 @@ exercised by two implementations, which is what demonstrates it is a seam.
 `cua discover` as a subcommand, since discovery needs a signed-on session and a
 subcommand would require a credential in a flag. Assisted LLM recovery on replay
 failure, which is incompatible with the premise that the decision was made at
-review time.
+review time. And a discovered **mutating** capability: the fixture application
+carries a full sub-account flow — form, review, confirmation — and no discovery
+run was made against it. The `mutating` and `irreversible` gates are exercised
+by tests that set the effect class directly, not by a flow the compiler
+classified that way, and that is a weaker demonstration than the read-only path
+received.
 
 **Next, in order.**
 

@@ -136,34 +136,6 @@ def surviving_indices(nodes: Sequence[Node]) -> list[int]:
     ]
 
 
-def without_heading_duplicates(nodes: Sequence[Node]) -> list[Node]:
-    """Drop cells that only repeat a heading.
-
-    A panel head is a table cell wrapping a heading, so both arrive with the
-    same accessible name. The heading is the one worth targeting and the cell
-    carries nothing extra.
-    """
-    return [nodes[index] for index in surviving_indices(nodes)]
-
-
-def renumber(nodes: Sequence[Node], observation_id: str) -> list[Node]:
-    """Give the surviving nodes contiguous refs.
-
-    Gaps would read as nodes that went missing when the screen was captured
-    rather than ones that were filtered afterwards.
-    """
-    return [
-        _with_ref(node, NodeRef(observation_id=observation_id, value=f"{node.frame_id}:{index}"))
-        for index, node in enumerate(nodes)
-    ]
-
-
-def _with_ref(node: Node, ref: NodeRef) -> Node:
-    from dataclasses import replace
-
-    return replace(node, ref=ref)
-
-
 def _value_of(field: Mapping[str, Any] | None) -> str | None:
     if not field:
         return None

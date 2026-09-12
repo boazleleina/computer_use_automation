@@ -5,7 +5,7 @@ surface:
   # composition root, which is the one place allowed to know which adapters
   # exist, so naming one here is its job rather than a leak.
   kind: playwright                    # playwright | scripted
-  base_url: http://127.0.0.1:5000
+  base_url: http://127.0.0.1:5055
   headless: false
   viewport: { width: 1280, height: 800 }
 
@@ -35,7 +35,7 @@ policy:
   # Scope. Checked against Observation.url_pattern and Node.destination, so a
   # link can be refused before it is followed rather than after.
   allowed_origins:
-    - http://127.0.0.1:5000
+    - http://127.0.0.1:5055
   allowed_routes:
     - /login
     - /search
@@ -52,10 +52,11 @@ policy:
   denied_controls:
     - { role: link, name: "Sign Off" }
 
+artifacts:
+  dir: capabilities                   # stored capabilities: the product, never overwritten
+
 evidence:
   dir: evidence                       # committed: the curated run records
-  capture_screenshots: true
-  capture_dom: true
 
   # Redaction is driven by sensitivity declared on a capability's inputs and
   # outputs, not by scanning recorded text. A scan cannot be shown correct:
@@ -71,26 +72,10 @@ evidence:
     # Anything a capability failed to classify. Fails closed: a value nobody
     # typed is dropped rather than published on the assumption it was harmless.
     unclassified: drop
-
-    # Structural, evaluated on the control rather than on any text.
-    #
-    # password_inputs is enforced, and not here: the surface marks a password
-    # box as Node.secret and Policy refuses every action on one, so nothing is
-    # ever typed into it and there is no value for this stage to handle. It
-    # stayed a config key for a while and enforced nothing, which a discovery
-    # run found by guessing credentials and typing them into a sign on form.
-    #
-    # cookies and authorization_headers are not enforced. Nothing in this
-    # system reads either — perception is the accessibility tree — so there is
-    # no code path for them to be captured on. They are listed as intent for
-    # the day a surface does look at a transport, and are a lie until then.
-    never_capture:
-      - password_inputs        # enforced: domain.policy.PolicyRule.SECRET_CONTROL
-      - cookies                # not yet reachable
-      - authorization_headers  # not yet reachable
+    # No never_capture list. Password fields are refused structurally — the
+    # surface marks one as Node.secret and Policy refuses every action on it —
+    # so there is nothing here to configure. A list of things this file did
+    # not enforce sat here for three phases and read as though it did.
 
 timeout:
-  action_ms: 5000
-  model_ms: 60000
-  step_ms: 70000
-  run_ms: 900000
+  action_ms: 5000                     # one surface action; the run bound is discovery.run_ms

@@ -45,7 +45,8 @@ EVIDENCE = Path("evidence")
 COMPILED = Path("evidence/discovery/capability.yaml")
 REVIEWED = Path("tests/fixtures/member_lookup.handwritten.yaml")
 
-# Three runs, and the third is the reason there are three.
+# Four runs. The second is the parameterisation claim made as a record rather
+# than a sentence; the last two are the reason for the other two.
 #
 # A compiled artifact only carries conditions for the screens the discovery run
 # actually passed through, because a run that reached its goal never met a
@@ -58,6 +59,12 @@ REVIEWED = Path("tests/fixtures/member_lookup.handwritten.yaml")
 # side by side than as a paragraph.
 RUNS = (
     ("replay_success", COMPILED, "100045", "compiled artifact, member exists"),
+    (
+        "replay_success_other_member",
+        COMPILED,
+        "100046",
+        "the same artifact, a member the discovery run never saw",
+    ),
     ("replay_not_found", COMPILED, "100099", "compiled artifact, member does not exist"),
     (
         "replay_not_found_reviewed",
@@ -74,7 +81,7 @@ DECLARED = {
         "condition", "code", "outcome", "matched", "held", "intent", "via_signal",
         "signal_index", "allowed", "rule", "reason", "detail", "url_pattern",
         "page_title", "run_state", "expected", "observed", "into", "evidence_ref",
-        "attempt", "resolved_via",
+        "attempt", "resolved_via", "artifact_approval", "source",
     )
 } | {"value": Sensitivity.PERSONAL}
 
@@ -117,14 +124,6 @@ def main() -> int:
             capability = capability_from_document(
                 yaml.safe_load(artifact.read_text(encoding="utf-8"))
             )
-            # Approved here, standing in for the reviewer. The compiler marks a
-            # discovered artifact draft on purpose, and a draft does not run
-            # unattended.
-            approved = replace(
-                capability,
-                contract=replace(capability.contract, approval=Approval.APPROVED),
-            )
-
             directory = EVIDENCE / run_id
             if directory.exists():
                 for existing in directory.rglob("*"):
@@ -140,6 +139,27 @@ def main() -> int:
                     os.environ["TARGET_APP_USER"]: Sensitivity.PERSONAL,
                 },
                 stream_name=f"{run_id}.jsonl",
+            )
+
+            # Proceeding as though a reviewer had approved this version. The
+            # compiler marks a discovered artifact draft on purpose and a draft
+            # does not run unattended, so a demonstration has to assert it —
+            # but the record says so rather than implying somebody read it.
+            sink.append(
+                run_id,
+                {
+                    "event": "approval_assumed",
+                    "artifact_approval": capability.contract.approval.value,
+                    "source": "scripts/replay_demo.py",
+                    "detail": (
+                        "no review record was consulted; a reviewer did not "
+                        "approve this version"
+                    ),
+                },
+            )
+            approved = replace(
+                capability,
+                contract=replace(capability.contract, approval=Approval.APPROVED),
             )
 
             reset(base_url)

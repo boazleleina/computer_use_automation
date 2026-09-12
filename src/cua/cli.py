@@ -69,7 +69,14 @@ def build_parser() -> argparse.ArgumentParser:
         "replay",
         help="execute a stored capability; no model is constructed",
     )
-    replay.add_argument("--artifact", required=True, metavar="PATH", help="the capability file")
+    source = replay.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--name", metavar="CAPABILITY", help="a stored capability, loaded from the artifact store"
+    )
+    source.add_argument("--artifact", metavar="PATH", help="a capability file, loaded directly")
+    replay.add_argument(
+        "--version", default="1.0.0", metavar="SEMVER", help="with --name (default: 1.0.0)"
+    )
     replay.add_argument(
         "--input",
         action="append",
@@ -79,9 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     replay.add_argument("--run-id", default="cli", help="names the evidence directory")
     replay.add_argument(
-        "--approve",
+        "--assume-approved",
         action="store_true",
-        help="treat the artifact as approved for this run, as a reviewer would",
+        help=(
+            "proceed as though a reviewer had approved this artifact. For "
+            "demonstration only; it is recorded as an assumption, not a review"
+        ),
     )
 
     return parser
@@ -108,6 +118,7 @@ def _replay(args: argparse.Namespace) -> int:
 
     from cua.app.replay import ReplayCapability
     from cua.composition import (
+        artifact_store,
         clock,
         evidence_sink,
         load_settings,
@@ -117,12 +128,18 @@ def _replay(args: argparse.Namespace) -> int:
     from cua.domain.artifact import capability_from_document
 
     settings = load_settings(Path(args.config))
-    document = yaml.safe_load(Path(args.artifact).read_text(encoding="utf-8"))
+    if args.name:
+        # The production path: a capability is invoked by name and version out
+        # of the store, which is the only place an approval can be recorded
+        # against a version. A path is for looking at a file before it is
+        # stored.
+        document = artifact_store(settings).load(args.name, args.version)
+    else:
+        document = yaml.safe_load(Path(args.artifact).read_text(encoding="utf-8"))
     capability = capability_from_document(document)
 
     inputs = _inputs(args.input)
-    if args.approve:
-        capability = _approved(capability)
+    assumed = bool(args.assume_approved)
 
     sink = evidence_sink(
         settings,
@@ -132,6 +149,26 @@ def _replay(args: argparse.Namespace) -> int:
         known_values=dict.fromkeys(inputs.values(), Sensitivity.PERSONAL),
         stream_name=f"{args.run_id}.jsonl",
     )
+
+    if assumed:
+        # Written before the run, and it names the artifact's real state. The
+        # engine needs an approved contract to proceed, so the override has to
+        # happen — but a record saying "approval: approved" for a capability
+        # nobody read is a false statement in evidence, and evidence is the
+        # thing this system exists to produce.
+        sink.append(
+            args.run_id,
+            {
+                "event": "approval_assumed",
+                "artifact_approval": capability.contract.approval.value,
+                "source": "--assume-approved",
+                "detail": (
+                    "no review record was consulted; a reviewer did not approve "
+                    "this version"
+                ),
+            },
+        )
+        capability = _approved(capability)
 
     with surface_session(settings) as surface:
         result = ReplayCapability(
@@ -171,12 +208,17 @@ def _inputs(pairs: Sequence[str]) -> dict[str, str]:
 
 
 def _approved(capability: Capability) -> Capability:
-    """Stand in for a reviewer, and say so.
+    """Proceed as though a reviewer had approved this version.
 
-    A flag rather than an edit to the file, because approval belongs to a
-    version of an artifact and flipping it in place would make the approved
-    thing and the reviewed thing two different documents. For a demonstration
-    this is the honest shortcut; in production the store holds the approval.
+    In production an approval belongs to an artifact store: it is recorded
+    against a version by somebody who read that version, and a caller cannot
+    assert it. This flag exists so the demonstration can run without a store,
+    and the run record says so — `approval_assumed` names the artifact's actual
+    state and the fact that no review was consulted.
+
+    In memory rather than written back to the file, because flipping approval
+    in place would make the approved document and the reviewed document two
+    different things.
     """
     from dataclasses import replace
 

@@ -32,9 +32,6 @@ class EvidenceError(DomainError):
     """A run record or attachment could not be written."""
 
 
-class OperatorError(DomainError):
-    """Control could not be handed to a human, or was never returned."""
-
 
 class MalformedArtifact(DomainError):
     """An artifact document does not describe a capability.
@@ -71,27 +68,3 @@ class ArtifactNotFound(DomainError):
         self.name = name
         self.version = version
 
-
-class PolicyDenied(DomainError):
-    """A proposed action was refused.
-
-    The reason is required. A denial with no stated cause cannot be written
-    into evidence as an account of why a run stopped.
-    """
-
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
-        self.reason = reason
-
-
-class TimeoutExceeded(DomainError):
-    """A budgeted operation ran past its deadline.
-
-    Carries the budget as a number rather than only in the message, because the
-    value is written to evidence and read back by tooling.
-    """
-
-    def __init__(self, what: str, budget_ms: int) -> None:
-        super().__init__(f"{what} exceeded {budget_ms}ms")
-        self.what = what
-        self.budget_ms = budget_ms
