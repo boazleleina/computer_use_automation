@@ -149,6 +149,10 @@ def test_a_declared_value_copied_into_another_field_is_caught():
     """Rendering keys off the field name and is blind to the same value
     elsewhere. url_pattern is declared internal, so nothing about the field says
     it should be withheld — but this one is carrying a member number.
+
+    Masked where it sits rather than taking the field with it. The rule is that
+    the raw value never reaches disk, and that holds either way; dropping would
+    also throw away the route, which is the only reason the field is recorded.
     """
     event = {
         "url_pattern": "/members/100045",
@@ -157,7 +161,45 @@ def test_a_declared_value_copied_into_another_field_is_caught():
     redacted = redact_event(event, DECLARED, RULES)
 
     assert MEMBER_NUMBER not in json.dumps(redacted)
-    assert redacted["url_pattern"] is None
+    assert redacted["url_pattern"] == "/members/****0045"
+
+
+def test_a_personal_value_inside_a_sentence_leaves_the_sentence_readable():
+    """The case that made this worth changing.
+
+    A model's rationale mentioning the member number had the whole field
+    dropped, which cost the one thing a rationale is recorded for. Nothing
+    identifying survives the substitution, and the sentence does.
+    """
+    event = {
+        "step": f"clicked Find to search for member {MEMBER_NUMBER}",
+        "inputs": {"member_id": MEMBER_NUMBER},
+    }
+    redacted = redact_event(event, DECLARED, RULES)
+
+    assert MEMBER_NUMBER not in json.dumps(redacted)
+    assert redacted["step"] == "clicked Find to search for member ****0045"
+
+
+def test_a_leaked_secret_takes_the_whole_field_and_a_member_number_does_not():
+    """The two halves of the backstop, in one record, so the difference is the
+    assertion rather than a claim in a docstring.
+
+    Masking a credential in place would publish its last four characters, and
+    four characters of a password is not a redacted password. A member number
+    masked to its last four is the rendering that class was given.
+    """
+    event = {
+        "step": f"sign on failed for {PASSWORD}",
+        "url_pattern": f"/members/{MEMBER_NUMBER}",
+        "inputs": {"operator_password": PASSWORD, "member_id": MEMBER_NUMBER},
+    }
+    redacted = redact_event(event, DECLARED, RULES)
+
+    assert redacted["step"] is None
+    assert redacted["url_pattern"] == "/members/****0045"
+    assert PASSWORD not in json.dumps(redacted)
+    assert PASSWORD[-4:] not in json.dumps(redacted)
 
 
 def test_a_secret_quoted_in_an_error_message_is_caught():

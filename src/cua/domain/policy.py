@@ -132,9 +132,22 @@ def redact_event(
     Rendering keys off the field name, which is correct for the value in that
     field and blind to the same value copied into another one — a member number
     spliced into a url, an error message quoting what was typed. So a second
-    pass drops any rendered string still containing a value declared secret or
-    personal. That is not pattern matching: the exact strings are known, because
-    the capability handed them over in this same record.
+    pass goes over what was rendered looking for values the record itself
+    declared sensitive. That is not pattern matching: the exact strings are
+    known, because the capability handed them over in this same record.
+
+    What the second pass does depends on what leaked, and the two cases are not
+    the same question:
+
+    A personal value is masked where it sits, so "search for member 100045"
+    becomes "search for member ****0045". The rule is that the raw value never
+    reaches disk, and that holds exactly — there is nothing left to recover.
+    Dropping the whole field would satisfy the rule too, and would also throw
+    away the sentence, which is the only reason the field was recorded.
+
+    A secret takes the field with it. Masking a credential in place would
+    publish its last four characters, and four characters of a password is not
+    a redacted password. There is no version of a leaked secret worth keeping.
 
     The first line of defence is upstream — url_pattern is a route by
     construction and never carries an identifier. This catches the case where
@@ -144,22 +157,26 @@ def redact_event(
     leaked = _sensitive_values(event, declared)
     if not leaked:
         return rendered
-    return {key: _drop_if_leaking(value, leaked) for key, value in rendered.items()}
+    return {key: _contain(value, leaked) for key, value in rendered.items()}
 
 
 def _sensitive_values(
     value: object,
     declared: Mapping[str, Sensitivity],
     key: str = "",
-) -> set[str]:
-    """Every raw string in the record whose field was declared secret or personal."""
+) -> dict[str, Sensitivity]:
+    """Every raw string in the record whose field was declared secret or personal.
+
+    Carries the class along with the string, because what to do about a leak
+    depends on which kind of value leaked.
+    """
     if isinstance(value, Mapping):
-        found: set[str] = set()
+        found: dict[str, Sensitivity] = {}
         for k, v in value.items():
             found |= _sensitive_values(v, declared, k)
         return found
     if isinstance(value, (list, tuple)):
-        found = set()
+        found = {}
         for item in value:
             found |= _sensitive_values(item, declared, key)
         return found
@@ -168,18 +185,27 @@ def _sensitive_values(
     if sensitivity in (Sensitivity.SECRET, Sensitivity.PERSONAL):
         text = str(value)
         if len(text) >= MIN_LEAK_LENGTH:
-            return {text}
-    return set()
+            return {text: sensitivity}
+    return {}
 
 
-def _drop_if_leaking(value: object, leaked: set[str]) -> object:
+def _contain(value: object, leaked: Mapping[str, Sensitivity]) -> object:
+    """Mask a leaked personal value in place; drop a field carrying a secret."""
     if isinstance(value, Mapping):
-        return {k: _drop_if_leaking(v, leaked) for k, v in value.items()}
+        return {k: _contain(v, leaked) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_drop_if_leaking(item, leaked) for item in value]
-    if isinstance(value, str) and any(secret in value for secret in leaked):
-        return None
-    return value
+        return [_contain(item, leaked) for item in value]
+    if not isinstance(value, str):
+        return value
+
+    contained = value
+    for raw, sensitivity in leaked.items():
+        if raw not in contained:
+            continue
+        if sensitivity is Sensitivity.SECRET:
+            return None
+        contained = contained.replace(raw, mask(raw))
+    return contained
 
 
 def _render(

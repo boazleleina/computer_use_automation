@@ -54,6 +54,10 @@ Rules that matter:
 - One action per turn. Look at the result before deciding the next one.
 - A control's value is shown after it. If a field already holds what you were \
 going to type, it is done.
+- A value you can see on screen is not a value the caller receives. Every \
+output the goal asks for must be captured with a read action naming the control \
+that holds it. complete reports that the goal is reachable; it does not extract \
+anything.
 - Call complete only when the goal has actually been achieved on screen, not \
 when the next step is obvious.
 - Call stuck rather than guessing. A wrong click in this application is worse \
