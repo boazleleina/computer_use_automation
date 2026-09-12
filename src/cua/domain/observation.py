@@ -55,6 +55,14 @@ class Node:
     It is a route, normalised exactly as url_pattern is, never a raw href.
     Identifiers must not enter an Observation, and an anchor to a member page
     would otherwise smuggle one in. None means the surface cannot tell.
+
+    `secret` marks a control that holds a credential — a password field. It is
+    a property of the control, not of any value, which is the only way policy
+    can refuse to touch one: a rule about values arrives too late, after
+    something has already been typed.
+
+    A surface that cannot tell reports False, so this is a statement that a
+    control is known to be secret and never a claim that the others are safe.
     """
 
     ref: NodeRef
@@ -66,6 +74,7 @@ class Node:
     enabled: bool
     visible: bool
     destination: str | None = None
+    secret: bool = False
 
 
 @dataclass(frozen=True)

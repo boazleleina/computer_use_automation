@@ -256,3 +256,115 @@ def test_the_sign_off_control_in_the_real_fixture_is_refused(search_page):
 
     verdict = POLICY.evaluate(ActionType.CLICK, node=sign_off)
     assert isinstance(verdict, Denied)
+
+
+def test_no_action_is_permitted_on_a_control_that_holds_a_credential():
+    """The hole a live discovery run walked straight through.
+
+    Asked to look up a member from a signed out session, the model did the
+    sensible thing: it found the sign on form, guessed a user id and a password,
+    and typed them. Policy allowed it — type was an allowed action, the field
+    was on an allowed route and was not in the denied list, and nothing in a
+    Node said it was a password box.
+
+    The claim that this system never touches credentials was only ever true of
+    capabilities, where Contract refuses a secret input. Discovery is not a
+    capability.
+    """
+    password = Node(
+        ref=NodeRef(observation_id="obs_1", value="main:3"),
+        role="textbox",
+        name="Password",
+        text=None,
+        frame_id="main",
+        bounds=Rect(x=0.0, y=0.0, width=10.0, height=10.0),
+        enabled=True,
+        visible=True,
+        secret=True,
+    )
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/login",),
+        allowed_actions=frozenset(ActionType),
+        denied_controls=(),
+    )
+
+    # Every action that addresses a control, not only type: reading one returns
+    # whatever is in it, and clicking one is at best pointless. Navigate is not
+    # in the list because it addresses a route and is refused before a control
+    # is looked at.
+    for action in (ActionType.TYPE, ActionType.CLICK, ActionType.SELECT, ActionType.READ):
+        verdict = policy.evaluate(action, password)
+        assert isinstance(verdict, Denied), action
+        assert verdict.rule is PolicyRule.SECRET_CONTROL, action
+
+
+def test_an_ordinary_field_beside_a_password_is_unaffected():
+    """The refusal is a property of the control, not of the screen it is on."""
+    user_id = Node(
+        ref=NodeRef(observation_id="obs_1", value="main:2"),
+        role="textbox",
+        name="User Id",
+        text=None,
+        frame_id="main",
+        bounds=Rect(x=0.0, y=0.0, width=10.0, height=10.0),
+        enabled=True,
+        visible=True,
+    )
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/login",),
+        allowed_actions=frozenset({ActionType.TYPE}),
+        denied_controls=(),
+    )
+
+    assert isinstance(policy.evaluate(ActionType.TYPE, user_id), Allowed)
+
+
+def test_a_run_may_not_operate_a_screen_it_is_not_allowed_to_be_on():
+    """The gap that let a discovery run type into a sign on form.
+
+    evaluate() asks where an action would take the run. Nothing it proposed had
+    a destination — typing into a field goes nowhere — so no route check ever
+    fired, and the page it was standing on was never anybody's question.
+    """
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/search", "/members/{member_id}"),
+        allowed_actions=frozenset(ActionType),
+        denied_controls=(),
+    )
+
+    assert isinstance(policy.may_operate("/search"), Allowed)
+    assert isinstance(policy.may_operate("/members/{member_id}"), Allowed)
+
+    verdict = policy.may_operate("/login")
+    assert isinstance(verdict, Denied)
+    assert verdict.rule is PolicyRule.ROUTE_NOT_ALLOWED
+
+
+def test_operating_a_screen_and_acting_on_it_are_separate_questions():
+    """Neither implies the other, which is why both are asked.
+
+    A control with no destination passes every route check evaluate() makes,
+    on a page the run should never have reached.
+    """
+    policy = Policy(
+        allowed_origins=("http://127.0.0.1:5000",),
+        allowed_routes=("/search",),
+        allowed_actions=frozenset({ActionType.TYPE}),
+        denied_controls=(),
+    )
+    user_id = Node(
+        ref=NodeRef(observation_id="obs_1", value="main:2"),
+        role="textbox",
+        name="User Id",
+        text=None,
+        frame_id="main",
+        bounds=Rect(x=0.0, y=0.0, width=10.0, height=10.0),
+        enabled=True,
+        visible=True,
+    )
+
+    assert isinstance(policy.evaluate(ActionType.TYPE, user_id), Allowed)
+    assert isinstance(policy.may_operate("/login"), Denied)

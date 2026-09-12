@@ -149,6 +149,10 @@ def test_a_declared_value_copied_into_another_field_is_caught():
     """Rendering keys off the field name and is blind to the same value
     elsewhere. url_pattern is declared internal, so nothing about the field says
     it should be withheld — but this one is carrying a member number.
+
+    Masked where it sits rather than taking the field with it. The rule is that
+    the raw value never reaches disk, and that holds either way; dropping would
+    also throw away the route, which is the only reason the field is recorded.
     """
     event = {
         "url_pattern": "/members/100045",
@@ -157,7 +161,45 @@ def test_a_declared_value_copied_into_another_field_is_caught():
     redacted = redact_event(event, DECLARED, RULES)
 
     assert MEMBER_NUMBER not in json.dumps(redacted)
-    assert redacted["url_pattern"] is None
+    assert redacted["url_pattern"] == "/members/****0045"
+
+
+def test_a_personal_value_inside_a_sentence_leaves_the_sentence_readable():
+    """The case that made this worth changing.
+
+    A model's rationale mentioning the member number had the whole field
+    dropped, which cost the one thing a rationale is recorded for. Nothing
+    identifying survives the substitution, and the sentence does.
+    """
+    event = {
+        "step": f"clicked Find to search for member {MEMBER_NUMBER}",
+        "inputs": {"member_id": MEMBER_NUMBER},
+    }
+    redacted = redact_event(event, DECLARED, RULES)
+
+    assert MEMBER_NUMBER not in json.dumps(redacted)
+    assert redacted["step"] == "clicked Find to search for member ****0045"
+
+
+def test_a_leaked_secret_takes_the_whole_field_and_a_member_number_does_not():
+    """The two halves of the backstop, in one record, so the difference is the
+    assertion rather than a claim in a docstring.
+
+    Masking a credential in place would publish its last four characters, and
+    four characters of a password is not a redacted password. A member number
+    masked to its last four is the rendering that class was given.
+    """
+    event = {
+        "step": f"sign on failed for {PASSWORD}",
+        "url_pattern": f"/members/{MEMBER_NUMBER}",
+        "inputs": {"operator_password": PASSWORD, "member_id": MEMBER_NUMBER},
+    }
+    redacted = redact_event(event, DECLARED, RULES)
+
+    assert redacted["step"] is None
+    assert redacted["url_pattern"] == "/members/****0045"
+    assert PASSWORD not in json.dumps(redacted)
+    assert PASSWORD[-4:] not in json.dumps(redacted)
 
 
 def test_a_secret_quoted_in_an_error_message_is_caught():
@@ -204,3 +246,61 @@ def test_rules_can_be_tightened_without_touching_call_sites():
     )
     redacted = redact_event({"member_id": MEMBER_NUMBER}, DECLARED, strict)
     assert redacted["member_id"] is None
+
+
+def test_an_absent_value_is_not_masked_into_looking_present():
+    """Nothing to hide is not the same as something hidden.
+
+    A click carries no value. Masking the absence of one wrote "****" into the
+    record, which reads as a value that was entered and withheld — the same
+    kind of lie that dropping the key instead of the value would tell, pointed
+    the other way.
+    """
+    redacted = redact_event({"member_id": None}, DECLARED, RULES)
+
+    assert "member_id" in redacted
+    assert redacted["member_id"] is None
+
+
+def test_a_run_identifier_is_masked_in_records_that_do_not_carry_it():
+    """The gap a live run found.
+
+    Field-name rendering only fires where the value sits in a classified field,
+    and the leak backstop only knows values the record itself declared. A click
+    records no value, so a rationale in that record naming the member had
+    nothing to be checked against and went to disk raw. The run knows its own
+    identifiers, so it says so once and every record is held to it.
+    """
+    event = {"step": f"clicked Find to look up member {MEMBER_NUMBER}"}
+
+    without = redact_event(event, DECLARED, RULES)
+    assert MEMBER_NUMBER in json.dumps(without)  # nothing in the record declared it
+
+    withknown = redact_event(
+        event, DECLARED, RULES, known={MEMBER_NUMBER: Sensitivity.PERSONAL}
+    )
+    assert MEMBER_NUMBER not in json.dumps(withknown)
+    assert withknown["step"] == "clicked Find to look up member ****0045"
+
+
+def test_a_run_level_secret_is_not_downgraded_by_the_field_it_sits_in():
+    """Strictest wins, and it has to win before rendering as well as after.
+
+    A token the run declared secret, landing in a field the capability declared
+    personal, came out masked to its last four characters. Four characters of a
+    credential is not a redacted credential, and it is the whole reason secret
+    and personal are handled differently at all.
+    """
+    token = "tok_abcdef123456"
+    event = {"step": f"used {token}", "member_id": token}
+
+    redacted = redact_event(
+        event,
+        {"member_id": Sensitivity.PERSONAL, "step": Sensitivity.INTERNAL},
+        RULES,
+        known={token: Sensitivity.SECRET},
+    )
+
+    assert redacted["step"] is None
+    assert redacted["member_id"] is None
+    assert token[-4:] not in json.dumps(redacted)

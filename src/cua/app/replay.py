@@ -660,7 +660,11 @@ def _fill_target(target: TargetSpec, bound: Mapping[str, str]) -> TargetSpec:
     the data, and a relation describes structure; binding either would mean the
     artifact was describing something other than the application.
     """
-    if not any(PLACEHOLDER.search(signal.name or "") for signal in target.signals):
+    # PLACEHOLDER_SHAPED, not PLACEHOLDER. A malformed placeholder in a signal
+    # name does not match the strict pattern, so guarding with it here returned
+    # early and handed the literal braces to resolve() as a control name —
+    # skipping the very validation _fill was given to do.
+    if not any(PLACEHOLDER_SHAPED.search(signal.name or "") for signal in target.signals):
         return target
     return replace(
         target,

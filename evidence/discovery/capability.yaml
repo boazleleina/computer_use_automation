@@ -1,0 +1,152 @@
+schema_version: '1.0'
+contract:
+  id: lookup_member_balance
+  version: 1.0.0
+  description: Look up member {{ inputs.member_id }} and read their current savings
+    balance and the name on the account.
+  effect: mutating
+  approval: draft
+  provenance:
+    source: discovered
+    author: discovery
+    note: Compiled from a discovery trajectory. The rationales in the run log are
+      the model's reasoning at the time; the targets below are this compiler's, rebuilt
+      from what each control was.
+    recorded_against:
+      app: riverside_cu_backoffice
+      release: 4.2.11
+      variant: base
+  inputs:
+  - name: member_id
+    type: string
+    pattern: ^[0-9]{6}$
+    required: true
+    sensitivity: personal
+    description: Supplied per invocation. Recorded against a 6 digit value.
+  outputs:
+  - name: savings_balance
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+  - name: account_name
+    type: string
+    sensitivity: personal
+    transform: strip_whitespace
+    description: Read from the member detail screen.
+steps:
+- id: 01_type_member_number
+  action: type
+  value_template: '{{ inputs.member_id }}'
+  target:
+    intent: textbox 'Member Number'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: textbox
+      name: Member Number
+  checkpoint:
+    detectors:
+    - kind: field_value_equals
+      value: '{{ inputs.member_id }}'
+      target_ref: self
+- id: 02_click_find
+  action: click
+  target:
+    intent: button 'Find'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: button
+      name: Find
+  checkpoint:
+    detectors:
+    - kind: node_present
+      role: columnheader
+      name: Member No
+- id: 03_click_{{ inputs.member_id }}
+  action: click
+  target:
+    intent: link '{{ inputs.member_id }}'
+    rationale: Role and accessible name. Both come from the accessibility tree rather
+      than from markup, which is what survives a framework regenerating its ids.
+    signals:
+    - kind: role_name
+      confidence: high
+      role: link
+      name: '{{ inputs.member_id }}'
+  checkpoint:
+    detectors:
+    - kind: url_pattern_is
+      pattern: /members/{member_id}
+    - kind: node_present
+      role: heading
+      name: Member Detail
+- id: 04_read_savings_balance
+  action: read
+  reads_into: savings_balance
+  target:
+    intent: Value beside the 'Savings Balance' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Savings Balance
+      relation: next_sibling
+  checkpoint:
+    detectors:
+    - kind: node_present
+      role: rowheader
+      name: Savings Balance
+- id: 05_read_account_name
+  action: read
+  reads_into: account_name
+  target:
+    intent: Value beside the 'Account Name' row header
+    rationale: 'The cell is named by its own contents, so it cannot be found by name
+      without already knowing the answer. The stable fact is the adjacency: the header
+      names the row and the value follows it.'
+    signals:
+    - kind: anchor
+      confidence: high
+      role: rowheader
+      name: Account Name
+      relation: next_sibling
+  checkpoint:
+    detectors:
+    - kind: node_present
+      role: rowheader
+      name: Account Name
+conditions:
+- name: member_enquiry_ready
+  outcome: success
+  detail: Member Services - Riverside CU Back Office at /search
+  detectors:
+  - kind: url_pattern_is
+    pattern: /search
+  - kind: node_present
+    role: heading
+    name: Member Enquiry
+- name: member_detail_ready
+  outcome: success
+  detail: Member Detail - Riverside CU Back Office at /members/{member_id}
+  detectors:
+  - kind: url_pattern_is
+    pattern: /members/{member_id}
+  - kind: node_present
+    role: heading
+    name: Member Detail
+success:
+  detectors:
+  - kind: url_pattern_is
+    pattern: /members/{member_id}
+  - kind: node_present
+    role: heading
+    name: Member Detail

@@ -195,6 +195,10 @@ def test_the_live_surface_sees_what_the_fixtures_recorded(target_app):
     """
     from tests.conftest import load_observation
 
+    # Whatever the previous test armed is still armed. These two do not set a
+    # lever themselves, which is precisely why they would inherit one.
+    arm(target_app, "reset")
+
     with browser_session(target_app, headless=HEADLESS, slow_mo_ms=SLOW_MO_MS) as surface:
         sign_on(surface, target_app)
         live = surface.observe()

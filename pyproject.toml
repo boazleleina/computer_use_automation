@@ -17,7 +17,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Discovery needs a model; replay does not, and keeping that true of the
+# install and not only of the import graph is the cheapest way to show it. A
+# deployment that only replays approved capabilities never pulls this in.
+discovery = [
+    "anthropic>=0.40",
+]
+
 dev = [
+    "anthropic>=0.40",     # the discovery adapter, so mypy and the suite see it
     "pytest>=8.0",
     "ruff>=0.6",
     "mypy>=1.11",

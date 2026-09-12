@@ -13,15 +13,19 @@ model:
   provider: anthropic
   name: claude-sonnet-5
   max_tokens: 4096
-  temperature: 0.0
 
 discovery:
   # Bounds on the run loop, not parameters of the model. They hold whichever
   # ModelPort implementation is wired in, including a recorded one, and replay
   # never reads this block at all.
   max_steps: 40                       # hard cap on actions in one run
-  stop_on_repeated_state: true        # the same screen twice means stuck
-  stop_on_policy_refusal: true        # a refusal ends the run, never a retry
+  run_ms: 900000                      # wall clock bound on the whole run
+  stop_on_repeated_state: true        # an action that changed nothing means stuck
+
+  # There is no stop_on_policy_refusal. A refusal always ends the run, so it is
+  # not a knob: a model that proposed a denied action proposes it again against
+  # the same screen, and continuing means either the same refusal forever or
+  # acting on the second guess. Neither is something to make configurable.
 
 policy:
   # Two independent layers, both always applied. Not a mode: an allowlist bounds
@@ -68,13 +72,22 @@ evidence:
     # typed is dropped rather than published on the assumption it was harmless.
     unclassified: drop
 
-    # Structural, evaluated on the control rather than on any text. A password
-    # field's value never enters an Observation, so there is nothing downstream
-    # for a pattern to miss and nothing in a screenshot or DOM capture either.
+    # Structural, evaluated on the control rather than on any text.
+    #
+    # password_inputs is enforced, and not here: the surface marks a password
+    # box as Node.secret and Policy refuses every action on one, so nothing is
+    # ever typed into it and there is no value for this stage to handle. It
+    # stayed a config key for a while and enforced nothing, which a discovery
+    # run found by guessing credentials and typing them into a sign on form.
+    #
+    # cookies and authorization_headers are not enforced. Nothing in this
+    # system reads either — perception is the accessibility tree — so there is
+    # no code path for them to be captured on. They are listed as intent for
+    # the day a surface does look at a transport, and are a lie until then.
     never_capture:
-      - password_inputs
-      - cookies
-      - authorization_headers
+      - password_inputs        # enforced: domain.policy.PolicyRule.SECRET_CONTROL
+      - cookies                # not yet reachable
+      - authorization_headers  # not yet reachable
 
 timeout:
   action_ms: 5000

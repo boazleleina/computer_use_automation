@@ -45,9 +45,20 @@ SIGNAL_VALUE_KEYS = ("name", "text", "selector")
 # The document says `pattern`, the detector field is `url_pattern`.
 DETECTOR_KEY_ALIASES = {"pattern": "url_pattern"}
 
+# Written into every document this module emits, and the version the reader
+# above understands. One constant so the two cannot disagree.
+SCHEMA_VERSION = "1.0"
+
 
 def capability_from_document(document: Mapping[str, Any]) -> Capability:
     """Parse an artifact document, or say precisely what is wrong with it."""
+    version = str(document.get("schema_version", SCHEMA_VERSION))
+    if version != SCHEMA_VERSION:
+        raise MalformedArtifact(
+            f"this artifact declares schema_version {version!r} and this reader "
+            f"understands {SCHEMA_VERSION!r}; an artifact written to a schema "
+            "nobody here knows cannot be executed on a guess"
+        )
     steps = tuple(_step(s) for s in document.get("steps", ()))
     _reject_duplicate_step_ids(steps)
     return Capability(
@@ -216,12 +227,17 @@ def _positive_int(value: Any, label: str) -> int:
     max_attempts of zero or a string would leave Recovery with a limit that
     never stops a loop or blows up part way through one.
 
-    bool and float are refused before int() sees them, because int() takes both
-    and quietly changes what the artifact said: `true` becomes 1 attempt and
-    `2.9` becomes 2. An author who wrote either meant something, and silently
-    rounding it is worse than telling them it is not a bound.
+    bool is refused outright and so is a fractional float, because int() takes
+    both and quietly changes what the artifact said: `true` becomes 1 attempt
+    and `2.9` becomes 2. An author who wrote either meant something, and
+    silently rounding it is worse than telling them it is not a bound. `2.0` is
+    a whole number written with a decimal point and is accepted as two.
     """
-    if isinstance(value, bool) or (isinstance(value, float) and value != int(value)):
+    # is_integer rather than a comparison against int(value): infinity and nan
+    # cannot be converted at all, so the comparison raises OverflowError and
+    # ValueError out of this function instead of the MalformedArtifact the
+    # caller is prepared for.
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
         raise MalformedArtifact(f"{label} must be a whole number, not {value!r}")
     try:
         number = int(value)
@@ -261,3 +277,171 @@ def _enum(enum_type: Any, value: Any, label: str) -> Any:
     except ValueError:
         allowed = sorted(m.value for m in enum_type)
         raise MalformedArtifact(f"unknown {label} {value!r}; expected one of {allowed}") from None
+
+
+# ---- the other direction ----------------------------------------------------
+
+
+def capability_to_document(capability: Capability) -> dict[str, Any]:
+    """A Capability as the document an author would have written.
+
+    The inverse of capability_from_document, and it lives beside it so the two
+    cannot drift. Serialising with dataclasses.asdict instead produced a file
+    using the domain's own field names — action_type, value — which this
+    loader does not read: the artifact the compiler shipped could not be loaded
+    by the system that compiled it, and nothing noticed because the tests
+    handed the object straight to the engine without going through disk.
+
+    Empty and None values are left out rather than written as nulls. An
+    artifact is read by people, and a file where most lines say "null" hides
+    the handful of lines that say something.
+    """
+    contract = capability.contract
+    document = _drop_empty(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "contract": {
+                "id": contract.name,
+                "version": contract.version,
+                "description": contract.goal,
+                "effect": contract.effect.value,
+                "approval": contract.approval.value,
+                "provenance": _provenance_document(contract.provenance),
+                "preconditions": list(contract.preconditions),
+                "inputs": [
+                    {
+                        "name": i.name,
+                        "type": i.type,
+                        "pattern": i.pattern,
+                        "required": i.required,
+                        "sensitivity": i.sensitivity.value,
+                        "description": i.description,
+                    }
+                    for i in contract.inputs
+                ],
+                "outputs": [
+                    {
+                        "name": o.name,
+                        "type": o.type,
+                        "sensitivity": o.sensitivity.value,
+                        "transform": o.transform,
+                        "description": o.description,
+                    }
+                    for o in contract.outputs
+                ],
+            },
+            "steps": [_step_document(s) for s in capability.steps],
+            "conditions": [_condition_document(c) for c in capability.conditions],
+            "success": {"detectors": [_detector_document(d) for d in capability.success]},
+        }
+    )
+    assert isinstance(document, dict)
+    return document
+
+
+def _step_document(step: Step) -> dict[str, Any]:
+    return {
+        "id": step.id,
+        "action": step.action_type.value,
+        "value_template": step.value,
+        "reads_into": step.reads_into,
+        "target": _target_document(step.target),
+        "checkpoint": (
+            {"detectors": [_detector_document(d) for d in step.checkpoint]}
+            if step.checkpoint
+            else None
+        ),
+    }
+
+
+def _target_document(target: TargetSpec | None) -> dict[str, Any] | None:
+    if target is None:
+        return None
+    return {
+        "intent": target.intent,
+        "rationale": target.rationale,
+        "signals": [_signal_document(s) for s in target.signals],
+    }
+
+
+def _signal_document(signal: Signal) -> dict[str, Any]:
+    """One signal, with its value under the key its kind is written with.
+
+    web.css writes `selector` and a label writes `text`, because that is what
+    the author typed; all three land in Signal.name on the way in.
+    """
+    key = {SignalKind.WEB_CSS: "selector", SignalKind.LABEL: "text"}.get(signal.kind, "name")
+    document: dict[str, Any] = {
+        "kind": signal.kind.value,
+        "confidence": signal.confidence.value,
+        "role": signal.role,
+        key: signal.name,
+    }
+    if signal.relation is not None:
+        document["relation"] = signal.relation.value
+    if signal.bounds is not None:
+        document["bounds"] = {
+            "x": signal.bounds.x,
+            "y": signal.bounds.y,
+            "width": signal.bounds.width,
+            "height": signal.bounds.height,
+        }
+    if signal.brittle:
+        document["brittle"] = True
+    return document
+
+
+def _condition_document(condition: Condition) -> dict[str, Any]:
+    recovery = condition.recovery
+    return {
+        "name": condition.name,
+        "outcome": condition.outcome.value,
+        "detail": condition.detail,
+        "code": condition.code,
+        "resume_checkpoint": condition.resume_checkpoint,
+        "detectors": [_detector_document(d) for d in condition.detectors],
+        "recovery": (
+            {
+                "action": recovery.action.value,
+                "max_attempts": recovery.max_attempts,
+                "wait_ms": recovery.wait_ms,
+                "target": _target_document(recovery.target),
+            }
+            if recovery is not None
+            else None
+        ),
+    }
+
+
+def _detector_document(detector: Detector) -> dict[str, Any]:
+    """One detector, writing url_pattern back out as `pattern`."""
+    document: dict[str, Any] = {"kind": detector.kind.value}
+    for field_name in ("text", "role", "name", "title", "value", "target_ref"):
+        document[field_name] = getattr(detector, field_name)
+    document["pattern"] = detector.url_pattern
+    return document
+
+
+def _provenance_document(provenance: Provenance | None) -> dict[str, Any] | None:
+    if provenance is None:
+        return None
+    return {
+        "source": provenance.source,
+        "author": provenance.author,
+        "note": provenance.note,
+        "recorded_against": {
+            "app": provenance.app,
+            "release": provenance.release,
+            "variant": provenance.variant,
+        },
+    }
+
+
+def _drop_empty(value: Any) -> Any:
+    """Strip keys with nothing behind them, recursively."""
+    if isinstance(value, dict):
+        cleaned = {k: _drop_empty(v) for k, v in value.items()}
+        return {k: v for k, v in cleaned.items() if v not in (None, "", [], {})}
+    if isinstance(value, list):
+        return [_drop_empty(v) for v in value]
+    return value

@@ -36,6 +36,7 @@ class PolicyRule(StrEnum):
     ROUTE_NOT_ALLOWED = "route_not_allowed"
     ORIGIN_NOT_ALLOWED = "origin_not_allowed"
     APPROVAL_REQUIRED = "approval_required"
+    SECRET_CONTROL = "secret_control"
 
 
 class Sensitivity(StrEnum):
@@ -121,6 +122,7 @@ def redact_event(
     event: Mapping[str, object],
     declared: Mapping[str, Sensitivity],
     rules: RedactionRules,
+    known: Mapping[str, Sensitivity] | None = None,
 ) -> dict[str, object]:
     """Render one evidence record according to what the capability declared.
 
@@ -132,34 +134,84 @@ def redact_event(
     Rendering keys off the field name, which is correct for the value in that
     field and blind to the same value copied into another one — a member number
     spliced into a url, an error message quoting what was typed. So a second
-    pass drops any rendered string still containing a value declared secret or
-    personal. That is not pattern matching: the exact strings are known, because
-    the capability handed them over in this same record.
+    pass goes over what was rendered looking for values the record itself
+    declared sensitive. That is not pattern matching: the exact strings are
+    known, because the capability handed them over in this same record.
+
+    What the second pass does depends on what leaked, and the two cases are not
+    the same question:
+
+    A personal value is masked where it sits, so "search for member 100045"
+    becomes "search for member ****0045". The rule is that the raw value never
+    reaches disk, and that holds exactly — there is nothing left to recover.
+    Dropping the whole field would satisfy the rule too, and would also throw
+    away the sentence, which is the only reason the field was recorded.
+
+    A secret takes the field with it. Masking a credential in place would
+    publish its last four characters, and four characters of a password is not
+    a redacted password. There is no version of a leaked secret worth keeping.
 
     The first line of defence is upstream — url_pattern is a route by
     construction and never carries an identifier. This catches the case where
     something else did.
     """
-    rendered = {key: _render(key, value, declared, rules) for key, value in event.items()}
-    leaked = _sensitive_values(event, declared)
+    # What the run declared about particular values, merged with what the
+    # capability declared about fields, strictest winning. Computed before
+    # rendering rather than after, because a field rendered by its own
+    # declaration first cannot be re-judged afterwards: a secret masked to
+    # ****3456 no longer contains the secret for the second pass to find.
+    leaked = _strictest(dict(known or {}), _sensitive_values(event, declared))
+    rendered = {
+        key: _render(key, value, declared, rules, leaked) for key, value in event.items()
+    }
+
+    # What this record declared, plus what the run declared. The second half
+    # matters more than it looks: a record is only self-describing when it
+    # happens to carry the value in a classified field, and most do not. A
+    # click records no value at all, so a rationale in that record mentioning
+    # the member number had nothing to be compared against and went to disk
+    # raw. The run knows its own identifiers from the moment it is given them.
     if not leaked:
         return rendered
-    return {key: _drop_if_leaking(value, leaked) for key, value in rendered.items()}
+    return {key: _contain(value, leaked) for key, value in rendered.items()}
+
+
+def _strictest(
+    run_level: dict[str, Sensitivity], record_level: dict[str, Sensitivity]
+) -> dict[str, Sensitivity]:
+    """Merge two views of what is sensitive, keeping the stricter of each.
+
+    A plain update let the record win, which is the wrong way round when the
+    record is the weaker claim: a token the run declared secret, appearing in a
+    field the capability declared personal, came out masked to its last four
+    characters instead of dropped. Four characters of a credential is not a
+    redacted credential, which is the whole reason secret and personal are
+    handled differently at all.
+    """
+    merged = dict(record_level)
+    for value, sensitivity in run_level.items():
+        if sensitivity is Sensitivity.SECRET or value not in merged:
+            merged[value] = sensitivity
+    return merged
 
 
 def _sensitive_values(
     value: object,
     declared: Mapping[str, Sensitivity],
     key: str = "",
-) -> set[str]:
-    """Every raw string in the record whose field was declared secret or personal."""
+) -> dict[str, Sensitivity]:
+    """Every raw string in the record whose field was declared secret or personal.
+
+    Carries the class along with the string, because what to do about a leak
+    depends on which kind of value leaked.
+    """
     if isinstance(value, Mapping):
-        found: set[str] = set()
+        found: dict[str, Sensitivity] = {}
         for k, v in value.items():
             found |= _sensitive_values(v, declared, k)
         return found
     if isinstance(value, (list, tuple)):
-        found = set()
+        found = {}
         for item in value:
             found |= _sensitive_values(item, declared, key)
         return found
@@ -168,18 +220,30 @@ def _sensitive_values(
     if sensitivity in (Sensitivity.SECRET, Sensitivity.PERSONAL):
         text = str(value)
         if len(text) >= MIN_LEAK_LENGTH:
-            return {text}
-    return set()
+            return {text: sensitivity}
+    return {}
 
 
-def _drop_if_leaking(value: object, leaked: set[str]) -> object:
+def _contain(value: object, leaked: Mapping[str, Sensitivity]) -> object:
+    """Mask a leaked personal value in place; drop a field carrying a secret."""
     if isinstance(value, Mapping):
-        return {k: _drop_if_leaking(v, leaked) for k, v in value.items()}
+        return {k: _contain(v, leaked) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_drop_if_leaking(item, leaked) for item in value]
-    if isinstance(value, str) and any(secret in value for secret in leaked):
+        return [_contain(item, leaked) for item in value]
+    if not isinstance(value, str):
+        return value
+
+    # Secrets first, and the whole field goes. Masking a personal value first
+    # could break a secret into pieces this loop no longer recognises, leaving
+    # fragments of a credential in a field that was then kept.
+    if any(raw in value for raw, s in leaked.items() if s is Sensitivity.SECRET):
         return None
-    return value
+
+    contained = value
+    for raw, sensitivity in leaked.items():
+        if sensitivity is not Sensitivity.SECRET and raw in contained:
+            contained = contained.replace(raw, mask(raw))
+    return contained
 
 
 def _render(
@@ -187,16 +251,31 @@ def _render(
     value: object,
     declared: Mapping[str, Sensitivity],
     rules: RedactionRules,
+    leaked: Mapping[str, Sensitivity] | None = None,
 ) -> object:
     if isinstance(value, Mapping):
-        return {k: _render(k, v, declared, rules) for k, v in value.items()}
+        return {k: _render(k, v, declared, rules, leaked) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_render(key, item, declared, rules) for item in value]
+        return [_render(key, item, declared, rules, leaked) for item in value]
 
-    rendering = rules.rendering_for(declared.get(key))
+    # The field's own class, unless the run said this particular value is
+    # something stricter. A field declared personal holding a value the run
+    # declared secret is a secret, whatever the field is called.
+    sensitivity = declared.get(key)
+    if leaked and isinstance(value, str) and leaked.get(value) is Sensitivity.SECRET:
+        sensitivity = Sensitivity.SECRET
+    rendering = rules.rendering_for(sensitivity)
     if rendering is Rendering.DROP:
         return None
     if rendering is Rendering.MASK:
+        # Nothing to hide is not the same as something hidden. A click carries
+        # no value, and masking the absence of one wrote "****" into the record,
+        # which reads as a value that was entered and withheld. The whole point
+        # of dropping to null rather than removing the key is that the record
+        # must not imply something happened; inventing a mask breaks that in
+        # the other direction.
+        if value is None:
+            return None
         return mask(str(value))
     if rendering is Rendering.RECORD:
         return value
@@ -277,6 +356,24 @@ class Policy:
                 reason="navigate was given no route, so there is nothing to check it against",
             )
 
+        if node is not None and node.secret:
+            # Before the denied-control list and before anything else about the
+            # control, because this is the one refusal that must not depend on
+            # somebody having remembered to configure it. A password field is a
+            # password field on every screen of every tenant.
+            #
+            # Every action, not only type. Reading one returns whatever is in
+            # it, and clicking one is at best pointless. There is no action on a
+            # credential field that this system has business performing: a
+            # person signs on, and the automation is handed a session.
+            return Denied(
+                rule=PolicyRule.SECRET_CONTROL,
+                reason=(
+                    f"{node.name or node.role!r} is a credential field; "
+                    "the session must be signed on before a run starts"
+                ),
+            )
+
         if node is not None:
             denial = self._check_control(node)
             if denial is not None:
@@ -292,6 +389,31 @@ class Policy:
             if denial is not None:
                 return denial
 
+        return Allowed()
+
+    def may_operate(self, route: str) -> Verdict:
+        """Whether the run may touch the screen it is currently standing on.
+
+        A different question from evaluate(), which asks where an action would
+        take the run. Both are needed and neither implies the other: the route
+        allowlist governed destinations and navigate targets, so a run that
+        arrived somewhere unlisted — redirected, bounced, timed out — could
+        operate that screen freely, because no individual action was going
+        anywhere new.
+
+        That gap is how a discovery run came to be typing a guessed user id
+        into a sign on form. Nothing it proposed had a destination, so nothing
+        was checked, and the page it was standing on was never anybody's
+        question.
+
+        Asked once per screen rather than once per action, because the answer
+        cannot differ between two actions on the same page.
+        """
+        if route not in self.allowed_routes:
+            return Denied(
+                rule=PolicyRule.ROUTE_NOT_ALLOWED,
+                reason=f"the run is on {route!r}, which is not in the allowlist",
+            )
         return Allowed()
 
     def may_run_unattended(self, effect: Effect, approved: bool) -> Verdict:

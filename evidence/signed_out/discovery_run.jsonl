@@ -1,0 +1,4 @@
+{"event": "discovery_started", "at": "2026-09-12T05:16:51.264467+00:00", "goal": "Look up member ****0045 and read their current savings balance and the name on the account.", "max_steps": 40, "run_ms": 900000}
+{"event": "observed", "at": "2026-09-12T05:16:51.319970+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
+{"event": "policy_check", "at": "2026-09-12T05:16:51.320241+00:00", "url_pattern": "/login", "allowed": false, "rule": "route_not_allowed", "reason": "the run is on '/login', which is not in the allowlist"}
+{"event": "discovery_finished", "at": "2026-09-12T05:16:51.320385+00:00", "stopped_because": "policy_refused", "succeeded": false, "steps": 0}
