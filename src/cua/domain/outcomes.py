@@ -159,7 +159,32 @@ def classify(observation: Observation, conditions: tuple[Condition, ...]) -> Cla
             matched=(),
         )
 
-    winner = max(matched, key=lambda c: SEVERITY[c.outcome])
+    severity = max(SEVERITY[c.outcome] for c in matched)
+    tied = [c for c in matched if SEVERITY[c.outcome] == severity]
+
+    # Severity maps one to one onto outcome, so a tie is the same outcome
+    # reached by two descriptions. That is harmless while they agree on the
+    # code, because the code is the only part of this a caller branches on.
+    # When they disagree, max() would publish whichever condition the author
+    # happened to list first — and a stable contract decided by line order in a
+    # YAML file is not a stable contract.
+    #
+    # resolve() refuses an ambiguous control rather than picking one, on the
+    # grounds that "it chose one anyway" is not a bug anybody can write down.
+    # The same argument applies here and this used to guess.
+    codes = {c.code for c in tied}
+    if len(codes) > 1:
+        return Classification(
+            outcome=Outcome.INTERVENTION_REQUIRED,
+            condition_name=None,
+            detail=(
+                "two conditions of equal severity describe this screen and "
+                f"disagree about what it means: {sorted(c.name for c in tied)}"
+            ),
+            matched=tuple(c.name for c in matched),
+        )
+
+    winner = tied[0]
     return Classification(
         outcome=winner.outcome,
         condition_name=winner.name,

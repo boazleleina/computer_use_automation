@@ -89,18 +89,22 @@ class ReplayCapability:
     def run(self, capability: Capability, inputs: Mapping[str, str], run_id: str) -> Result:
         """Execute a capability, or refuse before anything has been done.
 
-        The two guards come first and in this order: a capability that may not
-        run unattended should not produce a run at all, and inputs that do not
-        match the contract should not be typed into a live application.
+        Inputs are bound before the risk gate, and the order matters now that
+        an irreversible capability asks a person to confirm the invocation.
+        Confirmation is supposed to be about this member rather than about the
+        procedure, and an unbound goal reads "look up member {{ inputs.member_id
+        }}" — which is the procedure, and is the thing approval already covered.
+        Binding touches nothing: it validates against the contract and fills in
+        a template, so doing it first costs no risk and makes the request
+        answerable.
         """
         contract = capability.contract
         state = _RunState(capability=capability, run_id=run_id, bound={}, run=None)
+        state.bound = _bind_inputs(capability, inputs)
 
         gate = self.policy.may_run_unattended(contract.effect, approved=contract.approved)
         if isinstance(gate, Denied) and not self._confirmed(state, gate):
             return self._refused_before_starting(state, gate)
-
-        state.bound = _bind_inputs(capability, inputs)
         state.run = Run.start(
             run_id=run_id, capability=contract.name, version=contract.version
         )
@@ -193,7 +197,10 @@ class ReplayCapability:
             run_id=state.run_id,
             capability=contract.name,
             version=contract.version,
-            goal=contract.goal,
+            # The bound goal, so the person is confirming an invocation and
+            # not a procedure. Unbound it says "member {{ inputs.member_id }}",
+            # which is exactly the thing approval already signed off on.
+            goal=_fill(contract.goal, state.bound) or contract.goal,
             reason=EscalationReason.APPROVAL_REQUIRED,
             detail=gate.reason,
             resume_checkpoint="confirmed_by_operator",

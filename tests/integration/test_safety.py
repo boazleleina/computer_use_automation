@@ -279,3 +279,104 @@ def test_the_capability_artifacts_are_parameterised_not_recorded():
             continue
         serialised = json.dumps(document)
         assert not pattern.search(serialised), f"{path} hard codes a fixture identifier"
+
+
+def test_two_conditions_that_disagree_about_a_screen_are_refused(search_page):
+    """Severity decides between outcomes; it cannot decide between codes.
+
+    Two conditions of equal severity reach the same outcome by two routes,
+    which is harmless while they agree on the code — the only part of this a
+    caller branches on. When they disagree, taking the higher one by list order
+    publishes a contract decided by where somebody put a line in a YAML file.
+
+    resolve() refuses an ambiguous control rather than picking one. This used
+    to pick one.
+    """
+    from cua.domain.conditions import Condition, Detector, DetectorKind
+    from cua.domain.outcomes import classify
+
+    def describing(name: str, code: str) -> Condition:
+        return Condition(
+            name=name,
+            outcome=Outcome.BUSINESS_OUTCOME,
+            detectors=(Detector(kind=DetectorKind.URL_PATTERN, url_pattern="/search"),),
+            detail=f"{name} says so",
+            code=code,
+        )
+
+    verdict = classify(
+        search_page, (describing("first", "ONE"), describing("second", "TWO"))
+    )
+
+    assert verdict.outcome is Outcome.INTERVENTION_REQUIRED
+    assert verdict.condition_name is None
+    assert verdict.code is None
+    assert "first" in verdict.detail and "second" in verdict.detail
+
+
+def test_two_conditions_that_agree_are_not_ambiguous(search_page):
+    """The tie that does not matter. Same outcome, same code, different label:
+    a caller cannot tell the difference, so there is nothing to refuse."""
+    from cua.domain.conditions import Condition, Detector, DetectorKind
+    from cua.domain.outcomes import classify
+
+    def describing(name: str) -> Condition:
+        return Condition(
+            name=name,
+            outcome=Outcome.SUCCESS,
+            detectors=(Detector(kind=DetectorKind.URL_PATTERN, url_pattern="/search"),),
+            detail=f"{name} says so",
+        )
+
+    verdict = classify(search_page, (describing("first"), describing("second")))
+
+    assert verdict.outcome is Outcome.SUCCESS
+    assert verdict.condition_name == "first"
+
+
+def test_an_operator_confirms_an_invocation_not_a_procedure(capability, search_page):
+    """What the person is shown decides whether confirmation means anything.
+
+    Unbound, the request reads "look up member {{ inputs.member_id }}" — the
+    procedure, which is what approval already covered. Bound, it names the
+    member somebody is about to do something irreversible to.
+    """
+    from dataclasses import replace
+
+    from cua.domain.capability import Approval
+    from cua.domain.intervention import Handover, InterventionRequest
+
+    seen: list[InterventionRequest] = []
+
+    class Confirming:
+        def request_intervention(self, request: InterventionRequest) -> None:
+            seen.append(request)
+
+        def await_release(self, run_id: str) -> Handover:
+            return Handover()
+
+    dangerous = replace(
+        capability,
+        contract=replace(
+            capability.contract,
+            effect=Effect.IRREVERSIBLE,
+            approval=Approval.APPROVED,
+            goal="Close the sub-account for member {{ inputs.member_id }}.",
+        ),
+    )
+
+    ReplayCapability(
+        surface=ScriptedSurface([search_page]),
+        policy=Policy(
+            allowed_origins=("http://127.0.0.1:5000",),
+            allowed_routes=("/search",),
+            allowed_actions=frozenset(ActionType),
+            denied_controls=(),
+        ),
+        clock=FakeClock(),
+        operator=Confirming(),
+    ).run(dangerous, {"member_id": MEMBER_ID}, run_id="confirm")
+
+    assert seen, "an irreversible capability must ask before it starts"
+    assert MEMBER_ID in seen[0].goal
+    assert "{{" not in seen[0].goal
