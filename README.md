@@ -18,6 +18,107 @@ afterwards.
 
 ---
 
+## How it fits together
+
+A goal becomes an artifact once. The artifact is reviewed once. After that every
+invocation is deterministic replay, and the model is not in the loop.
+
+```mermaid
+flowchart LR
+    G["goal<br/>(natural language)"] --> D[DiscoverCapability]
+    D -->|drives| APP1[(target application)]
+    D --> T[Trajectory<br/>what was permitted and done]
+    T --> C[compile_capability]
+    C --> A["capability.yaml<br/>effect: mutating<br/>approval: draft"]
+    A --> R{{human review}}
+    R -->|approved| AA["capability.yaml<br/>approval: approved"]
+    AA --> RC[ReplayCapability]
+    RC -->|drives| APP2[(target application)]
+    RC --> RES["Result<br/>outcome + code + outputs"]
+    RC -.->|stuck| H[human takes the session]
+    H -.->|checkpoint holds| RC
+
+    style D fill:#e8f0fe,stroke:#4285f4
+    style RC fill:#e6f4ea,stroke:#34a853
+    style R fill:#fef7e0,stroke:#fbbc04
+    style H fill:#fce8e6,stroke:#ea4335
+```
+
+The model appears exactly once, on the left. `ReplayCapability` has no `Model`
+in its dependency graph, so that separation is a property of the wiring rather
+than a rule anyone has to remember.
+
+## Architecture
+
+Hexagonal — ports and adapters, with the dependency arrow pointing inward.
+Adapters depend on ports; ports are declared by the domain; the domain depends
+on nothing but the standard library.
+
+```mermaid
+flowchart TB
+    subgraph ADAPTERS["adapters/ &nbsp; — technology"]
+        direction LR
+        PW[PlaywrightSurface]
+        SC[ScriptedSurface]
+        CM[ClaudeModel]
+        RM[RecordedModel]
+        FE[FilesystemEvidenceSink]
+        CO[ConsoleOperator]
+    end
+
+    subgraph PORTS["ports/ &nbsp; — six Protocols the domain declares"]
+        direction LR
+        PS([Surface])
+        PM([Model])
+        PE([EvidenceSink])
+        PO([OperatorChannel])
+        PA([ArtifactStore])
+        PC([Clock])
+    end
+
+    subgraph APP["app/ &nbsp; — use cases: sequence, not decisions"]
+        direction LR
+        DIS[DiscoverCapability]
+        REP[ReplayCapability]
+    end
+
+    subgraph DOMAIN["domain/ &nbsp; — standard library only"]
+        direction LR
+        POL[Policy]
+        RES[resolve]
+        CLS[classify]
+        RUN[Run]
+        CMP[compiler]
+    end
+
+    PW --> PS
+    SC --> PS
+    CM --> PM
+    RM --> PM
+    FE --> PE
+    CO --> PO
+
+    PS --> APP
+    PM --> DIS
+    PE --> APP
+    PO --> APP
+    PA --> APP
+    PC --> APP
+
+    APP --> DOMAIN
+
+    style DOMAIN fill:#e6f4ea,stroke:#34a853
+    style PORTS fill:#e8f0fe,stroke:#4285f4
+    style ADAPTERS fill:#f1f3f4,stroke:#5f6368
+    style APP fill:#fef7e0,stroke:#fbbc04
+```
+
+`Model` connects only to `DiscoverCapability`. `Policy` is deliberately not a
+port — making the safety rules substitutable would allow a permissive
+implementation to be wired in by accident.
+
+---
+
 ## Requirements
 
 | | |

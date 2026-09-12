@@ -4,10 +4,10 @@ Seven runs, each produced by the commands in the [README](../README.md) rather
 than written for this directory: three model-driven discovery runs, three
 replays, and one handover performed by a person.
 
-The runs that **fail** are here on purpose. A run that reached its goal shows
-the machinery works. A run that stopped shows what the machinery does when
-something is wrong, which is the part that decides whether this is safe to point
-at a bank.
+The runs that fail are included deliberately. A run reaching its goal
+demonstrates that the machinery works; a run that stops demonstrates what the
+machinery does when something is wrong, which is the question that determines
+whether this is safe to point at a production system.
 
 | run | outcome | what it shows |
 |---|---|---|
@@ -38,15 +38,16 @@ a member the run never saw:
   --input member_id=100046 --approve      # 12.40, Test Member Two
 ```
 
-Worth reading in `capability.yaml`: `{{ inputs.member_id }}` appears where the
-member number was, including in the *name of the control that gets clicked* —
-the result row is named after the member. That substitution is what makes this a
-capability rather than a recording.
+In `capability.yaml`, `{{ inputs.member_id }}` appears wherever the member
+number stood — including in the accessible name of the control that is clicked,
+since the result row is named after the member. That substitution is what makes
+the file a capability rather than a recording.
 
-Worth reading in `transcript.json`: `Remaining: 40 actions, 899 seconds` at the
-end of each prompt, and `read 'Savings Balance' -> '4820.55'` in the history.
-The model is told what it has spent and what its reads returned; an earlier
-version told it neither and it read the same cell five times.
+In `transcript.json`, each prompt ends with the remaining budget
+(`Remaining: 40 actions, 899 seconds`) and the history renders a read with its
+result (`read 'Savings Balance' -> '4820.55'`). The model is told what it has
+spent and what its reads returned. An earlier version told it neither, and it
+read the same cell five times before completing.
 
 ## not_found — the screen stopped changing
 
@@ -64,11 +65,11 @@ Started from a session nobody signed on, the run observed `/login`, asked whethe
 it may operate that screen, and was told no. The model was never consulted about
 a page it has no business on.
 
-An earlier version of this same scenario is worth knowing about: before the
-route rule existed, the model found the sign-on form, guessed `operator` /
-`password`, and typed them. Its own rationale said *"Enter a plausible password
-to proceed with sign-on."* That is what `may_operate` and `SECRET_CONTROL` were
-built for, and this file is what they look like working.
+Before the route rule existed, the same scenario produced a different record:
+the model located the sign-on form, guessed `operator` / `password`, and entered
+them, with the rationale *"Enter a plausible password to proceed with sign-on."*
+`may_operate` and `SECRET_CONTROL` were added in response, and this file is the
+result.
 
 ## replay_success, replay_not_found, replay_not_found_reviewed
 
@@ -78,9 +79,8 @@ any of them and none could be reached.
 The first runs the compiled artifact against a member who exists and returns the
 balance and the account name.
 
-The second and third are the pair worth reading together. Both meet the same
-screen — the search returning "No member matches" — and they report it
-differently:
+The second and third should be read together. Both encounter the same screen —
+a search returning "No member matches" — and report it differently:
 
 | | artifact | outcome | code |
 |---|---|---|---|
@@ -121,29 +121,29 @@ restarted               "a person rescued the run"
 run_finished            success
 ```
 
-Two details worth pointing at.
+Two details in that record are worth noting.
 
-**The clicks into each field.** A script calling `fill()` never produces those.
-This was typed by a person.
+**The clicks into each field.** A script calling `fill()` does not produce
+those; they indicate the input was typed by a person.
 
-**There is no navigate to `/login`** — because there was none. The expired
-session renders the sign-on form *at the route of the page it replaced*, with
-HTTP 200. That is the trap the artifact's `session_expired` condition is written
-around, and here it is confirmed by a record nobody wrote for the purpose.
+**There is no navigation to `/login`,** because none occurred. The expired
+session renders the sign-on form at the route of the page it replaced, returning
+HTTP 200. That behaviour is what the artifact's `session_expired` condition is
+written around, and this record confirms it independently.
 
-The password is not in the file. Not masked on the way out — never read: the
-page listener sees `type=password` and reports that something was typed without
-reporting what.
+The password does not appear in the file. It is not masked on write — it is
+never read: the page listener identifies `type=password` and reports that a
+value was entered without reporting the value.
 
 ## What is not here
 
-No member number, no operator password, and no operator user id appears in any
-file in this directory. That is asserted rather than claimed —
-[`test_safety.py`](../tests/integration/test_safety.py) greps every tracked file
-under `evidence/` for the fixture identifiers and fails if it finds one.
+No member number, operator password or operator user id appears in any file in
+this directory. The claim is enforced rather than stated:
+[`test_safety.py`](../tests/integration/test_safety.py) searches every tracked
+file under `evidence/` for the fixture identifiers and fails if one is found.
 
-The recorded screens under `tests/fixtures/observations/` **do** contain member
-numbers, deliberately. Those are captured accessibility trees of a member detail
+The recorded screens under `tests/fixtures/observations/` do contain member
+numbers, deliberately. They are captured accessibility trees of a member detail
 page, and a recording of that page contains that member's number because that is
-what the page says. Scrubbing them would leave fixtures that no longer describe
+what the page displays. Removing it would leave fixtures that no longer describe
 the application they were taken from.
