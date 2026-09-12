@@ -1,9 +1,0 @@
-{"event": "discovery_started", "at": "2026-09-12T04:43:38.393689+00:00", "goal": "Look up member ****0045 and read their current savings balance and the name on the account.", "max_steps": 40, "run_ms": 900000}
-{"event": "observed", "at": "2026-09-12T04:43:38.438573+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
-{"event": "proposed", "at": "2026-09-12T04:43:40.207266+00:00", "step": 0, "kind": "act", "rationale": "Enter operator user id to begin sign on process.", "action": "type", "value": "****ator", "target_role": "textbox", "target_name": "User Id"}
-{"event": "policy_check", "at": "2026-09-12T04:43:40.207863+00:00", "action": "type", "allowed": true, "rule": null, "reason": null}
-{"event": "acted", "at": "2026-09-12T04:43:40.468864+00:00", "action": "type", "value": "****ator"}
-{"event": "observed", "at": "2026-09-12T04:43:40.500740+00:00", "url_pattern": "/login", "page_title": "Sign On - Riverside CU Back Office", "nodes": 7}
-{"event": "proposed", "at": "2026-09-12T04:43:42.266131+00:00", "step": 1, "kind": "act", "rationale": "Enter password to proceed with sign on.", "action": "type", "value": "****r_pw", "target_role": "textbox", "target_name": "Password"}
-{"event": "policy_check", "at": "2026-09-12T04:43:42.266915+00:00", "action": "type", "allowed": false, "rule": "secret_control", "reason": "'Password' holds a credential; signing on is a person's job and never the automation's"}
-{"event": "discovery_finished", "at": "2026-09-12T04:43:42.267426+00:00", "stopped_because": "policy_refused", "succeeded": false, "steps": 1}
