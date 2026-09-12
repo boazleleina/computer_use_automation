@@ -30,13 +30,9 @@ transcript.json       the raw model exchange, kept apart from the above
 capability.yaml       the compiled artifact
 ```
 
-The artifact beside it is the deliverable. It replays unmodified — including for
-a member the run never saw:
-
-```bash
-.venv/bin/python -m cua.cli replay --artifact evidence/discovery/capability.yaml \
-  --input member_id=100046 --approve      # 12.40, Test Member Two
-```
+The artifact beside it is the deliverable. It replays unmodified, including
+against a member the discovery run never saw; the [README](../README.md#quick-start)
+gives the command.
 
 In `capability.yaml`, `{{ inputs.member_id }}` appears wherever the member
 number stood — including in the accessible name of the control that is clicked,
