@@ -36,7 +36,7 @@ from cua.adapters.recorded_model import RecordedModel
 from cua.app.discover import DiscoverCapability
 from cua.app.replay import ReplayCapability
 from cua.domain.actions import ActionType, Effect
-from cua.domain.artifact import capability_from_document
+from cua.domain.artifact import capability_from_document, capability_to_document
 from cua.domain.capability import Approval, SignalKind
 from cua.domain.compiler import compile_capability
 from cua.domain.errors import MalformedArtifact
@@ -308,3 +308,68 @@ def _as_document(capability) -> str:
     exactly the kind of place nobody lists.
     """
     return json.dumps(asdict(capability), default=str)
+
+
+def test_the_compiled_artifact_survives_being_written_and_read_back(compiled, tmp_path):
+    """The gate above proves the object replays. This proves the file does.
+
+    They are not the same claim, and the difference cost a shipped artifact:
+    serialised with asdict, the document used the domain's own field names and
+    the loader — which reads the author's vocabulary — refused it with "missing
+    required key 'action'". Every test handed the object straight to the engine,
+    so nothing noticed that the thing on disk was unloadable.
+    """
+    path = tmp_path / "capability.yaml"
+    path.write_text(
+        yaml.safe_dump(capability_to_document(compiled), sort_keys=False), encoding="utf-8"
+    )
+
+    reloaded = capability_from_document(yaml.safe_load(path.read_text(encoding="utf-8")))
+
+    assert reloaded.contract.name == compiled.contract.name
+    assert reloaded.contract.version == compiled.contract.version
+    assert reloaded.contract.effect is compiled.contract.effect
+    assert [s.id for s in reloaded.steps] == [s.id for s in compiled.steps]
+    assert [s.action_type for s in reloaded.steps] == [s.action_type for s in compiled.steps]
+    assert [s.value for s in reloaded.steps] == [s.value for s in compiled.steps]
+    assert [s.reads_into for s in reloaded.steps] == [s.reads_into for s in compiled.steps]
+    assert [o.name for o in reloaded.contract.outputs] == [
+        o.name for o in compiled.contract.outputs
+    ]
+    assert [c.name for c in reloaded.conditions] == [c.name for c in compiled.conditions]
+    assert reloaded.success == compiled.success
+
+    # The targets are the part that actually finds a control, so they are
+    # compared signal by signal rather than by counting them.
+    for fresh, original in zip(reloaded.steps, compiled.steps, strict=True):
+        if original.target is None or fresh.target is None:
+            assert fresh.target is None and original.target is None
+            continue
+        assert [(s.kind, s.role, s.name, s.relation) for s in fresh.target.signals] == [
+            (s.kind, s.role, s.name, s.relation) for s in original.target.signals
+        ]
+
+
+def test_the_artifact_read_back_off_disk_replays(compiled, target_app: str, tmp_path):
+    """The whole thread, through a file: compile, write, load, approve, run."""
+    from dataclasses import replace
+
+    path = tmp_path / "capability.yaml"
+    path.write_text(
+        yaml.safe_dump(capability_to_document(compiled), sort_keys=False), encoding="utf-8"
+    )
+    loaded = capability_from_document(yaml.safe_load(path.read_text(encoding="utf-8")))
+    approved = replace(loaded, contract=replace(loaded.contract, approval=Approval.APPROVED))
+
+    with browser_session(target_app, headless=HEADLESS) as surface:
+        sign_on(surface, target_app)
+        engine = ReplayCapability(
+            surface=surface, policy=policy_for(target_app), clock=RealClock()
+        )
+        result = engine.run(approved, {"member_id": MEMBER_ID}, run_id="from_disk")
+
+    assert result.outcome is Outcome.SUCCESS
+    assert result.outputs == {
+        "savings_balance": "4820.55",
+        "account_name": "Test Member One",
+    }

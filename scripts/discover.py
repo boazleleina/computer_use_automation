@@ -26,7 +26,6 @@ import json
 import os
 import sys
 import threading
-from dataclasses import asdict
 from pathlib import Path
 
 import yaml
@@ -48,6 +47,7 @@ from cua.adapters.fs_evidence_sink import FilesystemEvidenceSink  # noqa: E402
 from cua.adapters.playwright_surface import browser_session  # noqa: E402
 from cua.app.discover import DiscoverCapability  # noqa: E402
 from cua.domain.actions import ActionType  # noqa: E402
+from cua.domain.artifact import capability_to_document  # noqa: E402
 from cua.domain.compiler import compile_capability  # noqa: E402
 from cua.domain.policy import (  # noqa: E402
     DeniedControl,
@@ -277,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
         app="riverside_cu_backoffice",
         release="4.2.11",
     )
-    document = _document(capability)
+    document = capability_to_document(capability)
     (EVIDENCE / RUN_ID / "capability.yaml").write_text(
         yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8"
     )
@@ -297,28 +297,6 @@ def _masked(text: str, inputs: dict[str, str]) -> str:
     for literal in inputs.values():
         text = text.replace(literal, mask(literal))
     return text
-
-
-def _document(capability: object) -> dict[str, object]:
-    """The capability as a plain document, in the vocabulary the loader reads.
-
-    asdict rather than a hand written serialiser, with the enums flattened.
-    Writing a second serialiser by hand is how the thing that is saved drifts
-    from the thing that was compiled.
-    """
-    plain = _plain(asdict(capability))  # type: ignore[call-overload]
-    assert isinstance(plain, dict)
-    return plain
-
-
-def _plain(value: object) -> object:
-    if isinstance(value, dict):
-        return {k: _plain(v) for k, v in value.items() if v is not None}
-    if isinstance(value, (list, tuple)):
-        return [_plain(v) for v in value]
-    if hasattr(value, "value") and hasattr(value, "name"):
-        return value.value
-    return value
 
 
 if __name__ == "__main__":
