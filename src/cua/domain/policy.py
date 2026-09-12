@@ -101,6 +101,12 @@ class RedactionRules:
 MASK_KEEP_LAST = 4
 MASK_PREFIX = "*" * MASK_KEEP_LAST
 
+# What a value reads as when it was never captured in the first place. It lives
+# here rather than with the handover types because this is the module that
+# decides what a withheld value looks like, and two spellings of it would show
+# up in evidence as two different things.
+REDACTED = "[REDACTED]"
+
 
 def mask(value: str) -> str:
     """Keep the last four characters, hide the rest.
@@ -108,6 +114,10 @@ def mask(value: str) -> str:
     A value of four characters or fewer is hidden completely: masking it to its
     last four would not be masking at all.
     """
+    # Already withheld. Masking it again produced "****TED]", which reads as a
+    # value that was captured and hidden rather than one that was never read.
+    if value == REDACTED:
+        return value
     if len(value) <= MASK_KEEP_LAST:
         return MASK_PREFIX
     return MASK_PREFIX + value[-MASK_KEEP_LAST:]

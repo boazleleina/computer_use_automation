@@ -21,10 +21,11 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 
-from cua.domain.actions import ActionType
+from cua.domain.actions import ActionType, Effect
 from cua.domain.capability import Capability, SignalKind, Step, TargetSpec
 from cua.domain.conditions import Condition, Detector, DetectorKind, RecoveryAction
 from cua.domain.errors import MalformedArtifact
+from cua.domain.intervention import InterventionRequest
 from cua.domain.observation import NodeRef, Observation
 from cua.domain.outcomes import Classification, Outcome, Result, classify
 from cua.domain.policy import Denied, Policy
@@ -42,6 +43,22 @@ PLACEHOLDER = re.compile(r"\{\{\s*inputs\.([a-zA-Z0-9_]+)\s*\}\}")
 # not PLACEHOLDER, and without the wider pattern it would survive substitution
 # untouched and be typed into the application exactly as written.
 PLACEHOLDER_SHAPED = re.compile(r"\{\{[^}]*\}\}")
+
+
+class _Restart:
+    """A person fixed the run, and it has to begin again rather than carry on.
+
+    Resuming where the escalation happened would work against a screen somebody
+    else has since changed. Signing back on returns an empty search page, so a
+    run that picked up at "verify the checkpoint" would judge the result of a
+    search that no longer exists and report the application broken.
+
+    Whether beginning again is safe is the caller's judgement, not this value's:
+    it says the world moved, and _start_over decides what may be done about it.
+    """
+
+
+RESTART = _Restart()
 
 # A detector may say `target_ref: self`, meaning the control this step acted on.
 SELF_REF = "self"
@@ -100,13 +117,53 @@ class ReplayCapability:
         if unmet is not None:
             return unmet
 
-        for step in capability.steps:
-            finished = self._run_step(state, step)
-            if finished is not None:
-                return finished
-            state.run = state.active.advance()
+        while True:
+            restarted = False
+            for step in capability.steps[state.active.step_index :]:
+                finished = self._run_step(state, step)
+                if finished is RESTART:
+                    restarted = True
+                    break
+                if finished is not None:
+                    return finished  # type: ignore[return-value]
+                state.run = state.active.advance()
 
-        return self._finish(state)
+            if not restarted:
+                return self._finish(state)
+
+            refused = self._start_over(state)
+            if refused is not None:
+                return refused
+
+    def _start_over(self, state: "_RunState") -> Result | None:
+        """Begin the capability again after a person rescued it.
+
+        The reason a run stopped is usually also a reason its earlier steps no
+        longer hold: signing back on returns an empty search page, so carrying
+        on from the interrupted step would submit a search nobody filled in.
+
+        Only for a capability that changes nothing. A mutating flow that was
+        rescued half way through might already have submitted something, and
+        this layer cannot tell whether repeating it would do the work twice —
+        so it refuses and leaves that to a person, which is where the run
+        already is. Being wrong in this direction costs a stopped run; being
+        wrong in the other costs a duplicate transaction.
+        """
+        effect = state.capability.contract.effect
+        if effect is not Effect.READ_ONLY:
+            state.run = state.active.fail("a mutating capability cannot restart itself")
+            return self._result(
+                state,
+                Outcome.INTERVENTION_REQUIRED,
+                detail=(
+                    f"a person rescued this run, but a {effect.value} capability cannot "
+                    "safely begin again: an earlier step may already have taken effect"
+                ),
+            )
+
+        state.run = state.active.start_over()
+        self._emit(state, "restarted", reason="a person rescued the run")
+        return None
 
     # ---- guards before the first step -------------------------------------
 
@@ -152,8 +209,9 @@ class ReplayCapability:
         if condition.resume_checkpoint not in state.capability.contract.preconditions:
             return None
 
+        reason = _reason_for(condition)
         state.run = state.active.escalate(
-            _reason_for(condition), resume_checkpoint=condition.resume_checkpoint
+            reason, resume_checkpoint=condition.resume_checkpoint
         )
         self._emit(
             state,
@@ -161,16 +219,26 @@ class ReplayCapability:
             precondition=condition.resume_checkpoint,
             condition=classification.condition_name,
         )
-        return self._escalate(state, None, observation)
+        return self._escalate(state, None, observation, reason)
 
     # ---- the phases of one step -------------------------------------------
 
-    def _run_step(self, state: "_RunState", step: Step) -> Result | None:
-        """One step, or the Result that ends the run inside it."""
+    def _run_step(self, state: "_RunState", step: Step) -> "Result | None | _Restart":
+        """One step, or the Result that ends the run inside it.
+
+        A step that was rescued by a person hands RESTART back to the caller
+        rather than retrying itself, because what has to begin again is usually
+        the capability and not the step. The bound on that is the escalation
+        budget: a second escalation for the same reason fails the run instead
+        of asking again.
+        """
+        return self._attempt_step(state, step)
+
+    def _attempt_step(self, state: "_RunState", step: Step) -> "Result | None | _Restart":
         self._emit(state, "step_started", step=step.id, action=step.action_type.value)
 
         settled = self._settle(state, step)
-        if isinstance(settled, Result):
+        if isinstance(settled, (Result, _Restart)):
             return settled
         observation = settled
 
@@ -192,7 +260,12 @@ class ReplayCapability:
         # member that does not exist is an answer, and reporting it as "the
         # checkpoint failed" would turn a true result into a crash.
         after = self._settle(state, step)
-        if isinstance(after, Result):
+        if isinstance(after, (Result, _Restart)):
+            # A rescue here is the interesting one. The action happened, then
+            # the session died, then somebody signed back on — which resets the
+            # search and leaves nothing for this step's checkpoint to find. The
+            # step begins again rather than judging a screen that was rebuilt
+            # underneath it.
             return after
         return self._checkpoint(state, step, after)
 
@@ -231,7 +304,9 @@ class ReplayCapability:
         )
         return True
 
-    def _settle(self, state: "_RunState", step: Step | None) -> Observation | Result:
+    def _settle(
+        self, state: "_RunState", step: Step | None
+    ) -> Observation | Result | _Restart:
         """Observe until the screen is one the run can work on.
 
         A recoverable condition is cleared and looked at again, up to the bound
@@ -251,14 +326,22 @@ class ReplayCapability:
 
             if classification.outcome is not Outcome.RECOVERABLE:
                 if classification.outcome in TERMINAL_OUTCOMES:
-                    return self._stop(state, step, observation, classification)
+                    stopped = self._stop(state, step, observation, classification)
+                    if stopped is not None:
+                        return stopped
+                    return RESTART
                 return observation
 
             if not self._attempt_recovery(state, observation):
                 state.run = state.active.escalate(
                     EscalationReason.RECOVERY_EXHAUSTED, resume_checkpoint="step_precondition"
                 )
-                return self._escalate(state, step, observation)
+                escalated = self._escalate(
+                    state, step, observation, EscalationReason.RECOVERY_EXHAUSTED
+                )
+                if escalated is not None:
+                    return escalated
+                return RESTART
 
     def _locate(
         self, state: "_RunState", step: Step, target: TargetSpec, observation: Observation
@@ -408,8 +491,12 @@ class ReplayCapability:
         step: Step | None,
         observation: Observation,
         classification: Classification,
-    ) -> Result:
-        """End the run on what the screen says.
+    ) -> Result | None:
+        """End the run on what the screen says, or hand it to a person.
+
+        None means a person took it, fixed it, and handed it back with the
+        resume checkpoint holding. The caller looks again rather than carrying
+        on from a screen nobody has re-examined.
 
         The classification is passed in rather than read back off the state: the
         caller has just computed it, and taking it as an argument removes the
@@ -426,33 +513,125 @@ class ReplayCapability:
             )
 
         condition = state.condition()
+        reason = _reason_for(condition)
         state.run = state.active.escalate(
-            _reason_for(condition),
+            reason,
             resume_checkpoint=(condition.resume_checkpoint if condition else None)
             or "step_precondition",
         )
-        return self._escalate(state, step, observation)
+        return self._escalate(state, step, observation, reason)
 
-    def _escalate(self, state: "_RunState", step: Step | None, observation: Observation) -> Result:
-        """Ask for a person, and stop. The automation issues nothing further."""
+    def _escalate(
+        self,
+        state: "_RunState",
+        step: Step | None,
+        observation: Observation,
+        reason: EscalationReason,
+    ) -> Result | None:
+        """Ask for a person. Continue only if one takes it and puts it right.
+
+        With no operator wired in, this stops — which is the correct behaviour
+        for an unattended deployment and is what every replay did before there
+        was anywhere to escalate to.
+        """
         reference = self._capture(state, step)
 
-        if self.operator is not None and state.active.awaiting_operator:
-            # The screen that caused the decision, not a fresh look at the
-            # world. On a live browser those differ: a page still settling
-            # would show the operator something the classifier never saw.
-            self.operator.request_intervention(
-                run_id=state.run_id,
-                reason=state.detail() or "a person is needed",
-                observation=observation,
-                screenshot_ref=reference,
+        if self.operator is None or not state.active.awaiting_operator:
+            return self._result(
+                state,
+                Outcome.INTERVENTION_REQUIRED,
+                detail=state.detail(),
+                step=step,
+                evidence_ref=reference,
             )
-        return self._result(
+
+        request = self._request(state, step, observation, reference, reason)
+        self._emit(state, "intervention_requested", **request.summary())
+
+        # The screen that caused the decision travels with the request, not a
+        # fresh look at the world. On a live browser those differ: a page still
+        # settling would show the operator something the classifier never saw.
+        self.operator.request_intervention(request)
+
+        state.run = state.active.hand_over()
+        self._emit(state, "handed_over", owner=state.active.owner.value)
+
+        handover = self.operator.await_release(state.run_id)
+        for record in handover.records():
+            self._emit(state, "human_action", **record)
+
+        state.run = state.active.return_control()
+        self._emit(state, "control_returned", actions=len(handover.events))
+
+        return self._resume(state, step, request, reference)
+
+    def _resume(
+        self,
+        state: "_RunState",
+        step: Step | None,
+        request: InterventionRequest,
+        reference: str | None,
+    ) -> Result | None:
+        """Look again, and continue only if the checkpoint holds.
+
+        Re-observed rather than trusted. A person saying they are finished is a
+        claim about them, not about the application: they may have signed on
+        and gone somewhere else, or fixed a different thing, or changed nothing
+        at all. Everything the run resolved before pausing belongs to a screen
+        that no longer exists, so the step runs again from observation.
+        """
+        observation = self.surface.observe()
+        classification = classify(observation, state.capability.conditions)
+        holds = _checkpoint_holds(request.resume_checkpoint, state, classification)
+
+        self._emit(
             state,
-            Outcome.INTERVENTION_REQUIRED,
-            detail=state.detail(),
-            step=step,
-            evidence_ref=reference,
+            "resume_checked",
+            checkpoint=request.resume_checkpoint,
+            holds=holds,
+            url_pattern=observation.url_pattern,
+            condition=classification.condition_name,
+        )
+
+        state.run = state.active.resume(checkpoint_holds=holds)
+        if not holds:
+            return self._result(
+                state,
+                Outcome.INTERVENTION_REQUIRED,
+                detail=(
+                    f"control came back but {request.resume_checkpoint!r} still does not hold"
+                ),
+                step=step,
+                evidence_ref=reference,
+            )
+        return None
+
+    def _request(
+        self,
+        state: "_RunState",
+        step: Step | None,
+        observation: Observation,
+        reference: str | None,
+        reason: EscalationReason,
+    ) -> InterventionRequest:
+        """Everything a person needs, assembled where it is still knowable.
+
+        Here rather than in the operator, because by the time a request reaches
+        a channel the engine has moved on and the answers would have to be
+        reconstructed. Reconstruction is wrong exactly when it matters.
+        """
+        contract = state.capability.contract
+        return InterventionRequest(
+            run_id=state.run_id,
+            capability=contract.name,
+            version=contract.version,
+            goal=contract.goal,
+            reason=reason,
+            detail=state.detail() or "a person is needed",
+            resume_checkpoint=state.active.resume_checkpoint or "step_precondition",
+            step_id=step.id if step else None,
+            observation=observation,
+            screenshot_ref=reference,
         )
 
     def _finish(self, state: "_RunState") -> Result:
@@ -465,6 +644,10 @@ class ReplayCapability:
         settled = self._settle(state, None)
         if isinstance(settled, Result):
             return settled
+        if isinstance(settled, _Restart):
+            # The last screen was rescued by a person. Look again before
+            # declaring success on a page that changed while nobody watched.
+            return self._finish(state)
 
         for detector in state.capability.success:
             bound = _fill_detector(detector, state.bound)
@@ -690,6 +873,30 @@ def _fill_detector(detector: Detector, bound: Mapping[str, str]) -> Detector:
         name=_fill(detector.name, bound),
         text=_fill(detector.text, bound),
     )
+
+
+def _checkpoint_holds(
+    checkpoint: str, state: "_RunState", classification: Classification
+) -> bool:
+    """Whether the named checkpoint is true of the screen in front of us.
+
+    Read the same way a precondition is read, and for the same reason: a
+    condition that names a checkpoint as the thing it resumes on is, by
+    construction, the thing that makes that checkpoint false. session_expired
+    resumes on authenticated_session, so session_expired matching means
+    authenticated_session does not hold.
+
+    A screen that matches no such condition passes. That is deliberate and it
+    is the weaker half of this test: it establishes that nothing known to be
+    wrong is on screen, not that everything required is. A capability wanting
+    more than that says so with a step checkpoint, which runs next anyway.
+    """
+    for condition in state.capability.conditions:
+        if condition.name not in classification.matched:
+            continue
+        if condition.resume_checkpoint == checkpoint:
+            return False
+    return True
 
 
 def _describe(detector: Detector) -> str:
