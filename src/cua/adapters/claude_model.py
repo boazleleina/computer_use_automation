@@ -31,7 +31,7 @@ from anthropic.types import MessageParam, ToolChoiceAnyParam, ToolParam
 from cua.domain.actions import ActionType, ProposalKind, ProposedAction
 from cua.domain.errors import ModelError
 from cua.domain.observation import Observation
-from cua.domain.trajectory import ExecutedStep
+from cua.domain.trajectory import Budget, ExecutedStep
 
 # Retries for output that does not fit the schema. Two, because a model that
 # has produced garbage twice against the same screen is not one attempt away
@@ -171,6 +171,7 @@ class ClaudeModel:
         goal: str,
         observation: Observation,
         history: Sequence[ExecutedStep],
+        budget: Budget,
     ) -> ProposedAction:
         """One validated proposal, or a ModelError after retrying.
 
@@ -179,7 +180,7 @@ class ClaudeModel:
         adapter holding its own conversation state could not be replayed and
         could not be tested twice.
         """
-        prompt = _prompt(goal, observation, history)
+        prompt = _prompt(goal, observation, history, budget)
         complaint: str | None = None
 
         for attempt in range(MALFORMED_RETRIES + 1):
@@ -300,7 +301,12 @@ def _ref_at(target: object, observation: Observation) -> Any:
     return observation.nodes[target].ref
 
 
-def _prompt(goal: str, observation: Observation, history: Sequence[ExecutedStep]) -> str:
+def _prompt(
+    goal: str,
+    observation: Observation,
+    history: Sequence[ExecutedStep],
+    budget: Budget,
+) -> str:
     """What the model is shown. Structured, not chatty.
 
     The screen is rendered as a numbered list rather than as markup. Markup is
@@ -332,6 +338,14 @@ def _prompt(goal: str, observation: Observation, history: Sequence[ExecutedStep]
     else:
         lines += ["", "Nothing has been done yet."]
 
+    # What is left, not what was configured. Forty means nothing to a decider
+    # part way through; two steps left is a fact it can act on.
+    lines += [
+        "",
+        f"Remaining: {budget.steps_remaining} actions, "
+        f"{budget.ms_remaining // 1000} seconds. The run stops when either runs "
+        "out, whatever state the screen is in.",
+    ]
     return "\n".join(lines)
 
 

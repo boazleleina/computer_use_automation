@@ -24,7 +24,7 @@ from cua.domain.actions import ActionType, ProposalKind, ProposedAction
 from cua.domain.errors import ModelError, SurfaceError
 from cua.domain.observation import Node, Observation
 from cua.domain.policy import Denied, Policy
-from cua.domain.trajectory import ExecutedStep, StopReason, Trajectory
+from cua.domain.trajectory import Budget, ExecutedStep, StopReason, Trajectory
 from cua.ports.clock import Clock
 from cua.ports.evidence import EvidenceSink
 from cua.ports.model import Model
@@ -91,7 +91,9 @@ class DiscoverCapability:
             if bound is not None:
                 return self._finish(run_id, goal, steps, bound)
 
-            outcome = self._one_step(run_id, goal, observation, steps, len(steps))
+            outcome = self._one_step(
+                run_id, goal, observation, steps, self._budget(len(steps), deadline)
+            )
             if isinstance(outcome, StopReason):
                 return self._finish(run_id, goal, steps, outcome)
 
@@ -109,10 +111,10 @@ class DiscoverCapability:
         goal: str,
         observation: Observation,
         history: Sequence[ExecutedStep],
-        taken: int,
+        budget: Budget,
     ) -> ExecutedStep | StopReason:
         """Ask, check, act. Either a step happened or the run is over."""
-        proposal = self._propose(goal, observation, history)
+        proposal = self._propose(goal, observation, history, budget)
         if isinstance(proposal, StopReason):
             return proposal
 
@@ -124,7 +126,7 @@ class DiscoverCapability:
         self._emit(
             run_id,
             "proposed",
-            step=taken,
+            step=len(history),
             kind=proposal.kind.value,
             rationale=proposal.rationale,
             action=proposal.action_type.value if proposal.action_type else None,
@@ -141,7 +143,11 @@ class DiscoverCapability:
         return self._perform(run_id, proposal, observation)
 
     def _propose(
-        self, goal: str, observation: Observation, history: Sequence[ExecutedStep]
+        self,
+        goal: str,
+        observation: Observation,
+        history: Sequence[ExecutedStep],
+        budget: Budget,
     ) -> ProposedAction | StopReason:
         """Ask the model, or stop because asking failed.
 
@@ -151,11 +157,18 @@ class DiscoverCapability:
         guessing that the third attempt differs from the second.
         """
         try:
-            return self.model.propose(goal, observation, history[-HISTORY_DEPTH:])
+            return self.model.propose(goal, observation, history[-HISTORY_DEPTH:], budget)
         except ModelError:
             return StopReason.MODEL_STUCK
 
     # ---- the checks --------------------------------------------------------
+
+    def _budget(self, taken: int, deadline: int) -> Budget:
+        """What is left, as the decider is told it."""
+        return Budget(
+            steps_remaining=max(0, self.limits.max_steps - taken),
+            ms_remaining=max(0, deadline - self.clock.monotonic_ms()),
+        )
 
     def _bound_reached(self, taken: int, deadline: int) -> StopReason | None:
         """Bounds checked before asking, not after acting.

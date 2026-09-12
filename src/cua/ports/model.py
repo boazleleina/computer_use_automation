@@ -15,7 +15,7 @@ from typing import Protocol
 
 from cua.domain.actions import ProposedAction
 from cua.domain.observation import Observation
-from cua.domain.trajectory import ExecutedStep
+from cua.domain.trajectory import Budget, ExecutedStep
 
 
 class Model(Protocol):
@@ -26,6 +26,7 @@ class Model(Protocol):
         goal: str,
         observation: Observation,
         history: Sequence[ExecutedStep],
+        budget: Budget,
     ) -> ProposedAction:
         """Propose one step.
 
@@ -38,6 +39,12 @@ class Model(Protocol):
         It is passed explicitly rather than held inside the implementation, so
         the same call with the same inputs is reproducible and a recorded
         transcript can be replayed against it.
+
+        `budget` says what is left of the run. An implementation may ignore it —
+        the loop enforces the bounds itself, because a limit a decider could
+        talk itself past would not be a limit — but a decider that knows it has
+        two steps left can choose to say it is stuck rather than spend them
+        looking.
 
         Implementations own schema validation and malformed output retry. A
         caller receives a well formed proposal or a ModelError, never a partial

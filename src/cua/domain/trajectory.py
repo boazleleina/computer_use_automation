@@ -40,6 +40,25 @@ class StopReason(StrEnum):
 
 
 @dataclass(frozen=True)
+class Budget:
+    """What is left of the run, as the decider is told it.
+
+    Paired with StopReason deliberately: these are the two bounds that end a
+    run without anything going wrong — MAX_STEPS and TIMEOUT — expressed as
+    what remains rather than as what was configured. A model told the limit is
+    forty learns nothing; a model told it has two steps left can decide whether
+    to spend them looking or to say it is stuck.
+
+    A decider is free to ignore this. It is information, not a rule: the loop
+    enforces the bounds itself, because a limit the model could talk itself
+    past would not be a limit.
+    """
+
+    steps_remaining: int
+    ms_remaining: int
+
+
+@dataclass(frozen=True)
 class ExecutedStep:
     """One action that was permitted, performed, and observed afterwards.
 

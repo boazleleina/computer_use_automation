@@ -27,7 +27,7 @@ from cua.adapters.errors import ConfigurationError
 from cua.domain.actions import ActionType, ProposalKind, ProposedAction
 from cua.domain.errors import ModelError
 from cua.domain.observation import Observation
-from cua.domain.trajectory import ExecutedStep
+from cua.domain.trajectory import Budget, ExecutedStep
 
 PROPOSED = "proposed"
 
@@ -63,10 +63,11 @@ class RecordedModel:
         goal: str,
         observation: Observation,
         history: Sequence[ExecutedStep],
+        budget: Budget,
     ) -> ProposedAction:
         """The next recorded proposal, bound to the screen in front of it.
 
-        `goal` and `history` are ignored on purpose. The decisions were made
+        `goal`, `history` and `budget` are ignored on purpose. The decisions were made
         once, against a real application, by a real model; pretending to
         reconsider them here would make this look like a model and behave like
         a script, which is the confusing half of both.

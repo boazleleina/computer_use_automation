@@ -288,3 +288,36 @@ def test_a_fixture_missing_a_field_is_translated(tmp_path):
 
     with pytest.raises(SurfaceError):
         load_observation(partial)
+
+
+def test_the_budget_says_what_is_left_not_what_was_configured(member_detail):
+    """A decider told the limit is forty learns nothing part way through.
+
+    The loop enforces the bounds itself either way — a limit a model could talk
+    itself past would not be a limit — so this is information, not a rule.
+    """
+    from cua.adapters.clocks import FakeClock
+    from cua.app.discover import DiscoverCapability, DiscoveryLimits
+    from cua.domain.actions import ProposalKind, ProposedAction
+    from cua.domain.policy import Policy
+    from cua.domain.trajectory import Budget
+
+    seen: list[Budget] = []
+
+    class Watching:
+        def propose(self, goal, observation, history, budget):
+            seen.append(budget)
+            return ProposedAction(kind=ProposalKind.COMPLETE, rationale="done")
+
+    DiscoverCapability(
+        surface=ScriptedSurface([member_detail]),
+        model=Watching(),
+        policy=Policy(
+            allowed_origins=(), allowed_routes=(), allowed_actions=frozenset(), denied_controls=()
+        ),
+        clock=FakeClock(),
+        limits=DiscoveryLimits(max_steps=40, run_ms=900_000),
+    ).run("anything", run_id="budget")
+
+    assert seen[0].steps_remaining == 40
+    assert seen[0].ms_remaining == 900_000

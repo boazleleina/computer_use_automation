@@ -9,7 +9,7 @@ yet; when it is, this file is what moves into it.
 
 What it leaves behind, under evidence/<run_id>/:
 
-    events.jsonl        what the run did: proposals, rationales, policy checks,
+    discovery_run.jsonl what the run did: proposals, rationales, policy checks,
                         actions and observations, redacted on the way out
     transcript.json     the raw model exchange, kept apart from the above
     capability.yaml     the compiled artifact
@@ -205,6 +205,10 @@ def main(argv: list[str] | None = None) -> int:
         rules=RULES,
         declared=DECLARED,
         known_values={member_id: Sensitivity.PERSONAL},
+        # Named for what the run was, not for what the sink writes. A replay
+        # stream sitting beside this one would be events.jsonl, and telling the
+        # two apart by directory alone is a thing somebody gets wrong once.
+        stream_name="discovery_run.jsonl",
     )
     chosen = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
     model = ClaudeModel(
