@@ -1,39 +1,39 @@
 {"event": "approval_assumed", "artifact_approval": "draft", "source": "scripts/replay_demo.py", "detail": "no review record was consulted; a reviewer did not approve this version"}
-{"event": "run_started", "at": "2026-09-12T06:58:22.638443+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "mutating", "approval": "approved"}
-{"event": "step_started", "at": "2026-09-12T06:58:22.638702+00:00", "step": "01_type_member_number", "action": "type"}
-{"event": "classified", "at": "2026-09-12T06:58:22.678885+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:22.679120+00:00", "step": "01_type_member_number", "intent": "textbox 'Member Number'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:22.679221+00:00", "step": "01_type_member_number", "action": "type", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:58:22.681633+00:00", "step": "01_type_member_number", "action": "type", "value": "****0045"}
-{"event": "classified", "at": "2026-09-12T06:58:22.706153+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:22.706377+00:00", "step": "01_type_member_number", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:58:22.706450+00:00", "step": "02_click_find", "action": "click"}
-{"event": "classified", "at": "2026-09-12T06:58:22.728552+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:22.728712+00:00", "step": "02_click_find", "intent": "button 'Find'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:22.728772+00:00", "step": "02_click_find", "action": "click", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:58:22.750711+00:00", "step": "02_click_find", "action": "click", "value": null}
-{"event": "classified", "at": "2026-09-12T06:58:22.794862+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:22.795081+00:00", "step": "02_click_find", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:58:22.795154+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click"}
-{"event": "classified", "at": "2026-09-12T06:58:22.826792+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:22.826975+00:00", "step": "03_click_{{ inputs.member_id }}", "intent": "link '{{ inputs.member_id }}'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:22.827043+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:58:22.837137+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "value": null}
-{"event": "classified", "at": "2026-09-12T06:58:22.892115+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:22.892346+00:00", "step": "03_click_{{ inputs.member_id }}", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:58:22.892617+00:00", "step": "04_read_savings_balance", "action": "read"}
-{"event": "classified", "at": "2026-09-12T06:58:22.935596+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:22.935774+00:00", "step": "04_read_savings_balance", "intent": "Value beside the 'Savings Balance' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:22.935868+00:00", "step": "04_read_savings_balance", "action": "read", "allowed": true, "rule": null}
-{"event": "read", "at": "2026-09-12T06:58:22.935933+00:00", "step": "04_read_savings_balance", "into": "savings_balance", "value": "****0.55"}
-{"event": "classified", "at": "2026-09-12T06:58:22.979006+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:22.979210+00:00", "step": "04_read_savings_balance", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:58:22.979279+00:00", "step": "05_read_account_name", "action": "read"}
-{"event": "classified", "at": "2026-09-12T06:58:23.021751+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:23.021950+00:00", "step": "05_read_account_name", "intent": "Value beside the 'Account Name' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:23.022015+00:00", "step": "05_read_account_name", "action": "read", "allowed": true, "rule": null}
-{"event": "read", "at": "2026-09-12T06:58:23.022075+00:00", "step": "05_read_account_name", "into": "account_name", "value": "**** One"}
-{"event": "classified", "at": "2026-09-12T06:58:23.063984+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:23.064169+00:00", "step": "05_read_account_name", "held": true}
-{"event": "classified", "at": "2026-09-12T06:58:23.106264+00:00", "step": null, "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
-{"event": "run_finished", "at": "2026-09-12T06:58:23.106468+00:00", "outcome": "success", "condition": "member_detail_ready", "code": null, "detail": "the capability completed", "step": null, "expected": null, "observed": null, "evidence_ref": null, "run_state": "succeeded"}
+{"event": "run_started", "at": "2026-09-12T07:09:25.817251+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "mutating", "approval": "approved"}
+{"event": "step_started", "at": "2026-09-12T07:09:25.817492+00:00", "step": "01_type_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T07:09:25.858420+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:25.858639+00:00", "step": "01_type_member_number", "intent": "textbox 'Member Number'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:25.858733+00:00", "step": "01_type_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:25.861263+00:00", "step": "01_type_member_number", "action": "type", "value": "****0045"}
+{"event": "classified", "at": "2026-09-12T07:09:25.885657+00:00", "step": "01_type_member_number", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:25.885852+00:00", "step": "01_type_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:25.885925+00:00", "step": "02_click_find", "action": "click"}
+{"event": "classified", "at": "2026-09-12T07:09:25.907644+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:25.907790+00:00", "step": "02_click_find", "intent": "button 'Find'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:25.907859+00:00", "step": "02_click_find", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:25.925548+00:00", "step": "02_click_find", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T07:09:25.969508+00:00", "step": "02_click_find", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:25.969726+00:00", "step": "02_click_find", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:25.969794+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click"}
+{"event": "classified", "at": "2026-09-12T07:09:26.001786+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_enquiry_ready", "outcome": "success", "matched": ["member_enquiry_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.001980+00:00", "step": "03_click_{{ inputs.member_id }}", "intent": "link '{{ inputs.member_id }}'", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.002052+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:26.017176+00:00", "step": "03_click_{{ inputs.member_id }}", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T07:09:26.071822+00:00", "step": "03_click_{{ inputs.member_id }}", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.072040+00:00", "step": "03_click_{{ inputs.member_id }}", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.072312+00:00", "step": "04_read_savings_balance", "action": "read"}
+{"event": "classified", "at": "2026-09-12T07:09:26.115378+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.115541+00:00", "step": "04_read_savings_balance", "intent": "Value beside the 'Savings Balance' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.115643+00:00", "step": "04_read_savings_balance", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T07:09:26.115710+00:00", "step": "04_read_savings_balance", "into": "savings_balance", "value": "****0.55"}
+{"event": "classified", "at": "2026-09-12T07:09:26.158030+00:00", "step": "04_read_savings_balance", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.158187+00:00", "step": "04_read_savings_balance", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:26.158251+00:00", "step": "05_read_account_name", "action": "read"}
+{"event": "classified", "at": "2026-09-12T07:09:26.200134+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:26.200289+00:00", "step": "05_read_account_name", "intent": "Value beside the 'Account Name' row header", "via_signal": "anchor", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:26.200353+00:00", "step": "05_read_account_name", "action": "read", "allowed": true, "rule": null}
+{"event": "read", "at": "2026-09-12T07:09:26.200408+00:00", "step": "05_read_account_name", "into": "account_name", "value": "**** One"}
+{"event": "classified", "at": "2026-09-12T07:09:26.242947+00:00", "step": "05_read_account_name", "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:26.243105+00:00", "step": "05_read_account_name", "held": true}
+{"event": "classified", "at": "2026-09-12T07:09:26.284767+00:00", "step": null, "condition": "member_detail_ready", "outcome": "success", "matched": ["member_detail_ready"]}
+{"event": "run_finished", "at": "2026-09-12T07:09:26.284946+00:00", "outcome": "success", "condition": "member_detail_ready", "code": null, "detail": "the capability completed", "step": null, "expected": null, "observed": null, "evidence_ref": null, "run_state": "succeeded"}

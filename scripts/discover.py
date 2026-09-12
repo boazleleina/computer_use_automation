@@ -244,6 +244,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     config = settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
     chosen = config["model"]
+
+    from cua.composition import load_settings
+
+    config_settings = load_settings(Path(os.environ.get("CUA_CONFIG", "config.yaml")))
     limits = limits_from(config)
     model = ClaudeModel(
         client=anthropic_client(key),
@@ -324,6 +328,23 @@ def main(argv: list[str] | None = None) -> int:
         release="4.2.11",
     )
     document = capability_to_document(capability)
+
+    # Into the store, which is where replay finds it by name. Versions are
+    # never overwritten there — a second discovery of the same capability at
+    # the same version is refused, and that refusal is the store doing its job
+    # rather than something to work around. The copy under evidence/ is the
+    # record of this run; the copy in the store is the product.
+    from cua.adapters.errors import ConfigurationError
+    from cua.composition import artifact_store
+
+    try:
+        stored = artifact_store(config_settings).save(
+            capability.contract.name, capability.contract.version, document
+        )
+        print(f"stored {stored}")
+    except ConfigurationError as refused:
+        print(f"not stored: {refused}")
+
     (run_dir / "capability.yaml").write_text(
         yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8"
     )

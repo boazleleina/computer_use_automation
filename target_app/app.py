@@ -316,4 +316,6 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    # 5055 rather than Flask's 5000, which macOS reserves for AirPlay Receiver
+    # and which therefore fails on every developer Mac out of the box.
+    app.run(host="127.0.0.1", port=int(os.environ.get("TARGET_APP_PORT", "5055")), debug=False)

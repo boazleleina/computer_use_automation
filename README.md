@@ -126,6 +126,7 @@ implementation to be wired in by accident.
 | Python | 3.11 or later |
 | Browser | Chromium, installed via Playwright |
 | Model access | Anthropic API key — **discovery only** |
+| Port | the fixture application defaults to `5055`; `5000` is AirPlay on macOS |
 
 ## Installation
 
@@ -170,39 +171,68 @@ server to run.
 
 ## Quick start
 
-Replay a capability against the target application:
+Replay the discovered capability with no model and no API key:
 
 ```bash
-.venv/bin/python -m cua.cli replay \
-  --artifact evidence/discovery/capability.yaml \
-  --input member_id=100045 \
-  --assume-approved
+unset ANTHROPIC_API_KEY          # the point: replay cannot use one
+.venv/bin/python scripts/replay_demo.py
 ```
 
 ```
-outcome : success
-outputs :
+replay_success — compiled artifact, member exists
+  outcome : success
   savings_balance = 4820.55
   account_name = Test Member One
+replay_success_other_member — the same artifact, a member the discovery run never saw
+  outcome : success
+  savings_balance = 12.40
+  account_name = Test Member Two
+replay_not_found — compiled artifact, member does not exist
+  outcome : hard_failure
+replay_not_found_reviewed — reviewed artifact, same screen, and a person had added the condition
+  outcome : business_outcome
+  code    : MEMBER_NOT_FOUND
 ```
 
-No API key required. The same artifact serves any member, because it is
-parameterised rather than recorded:
+Four replays against the in-process fixture application. The script signs on
+first, standing in for the operator who would already be signed on in
+production, then runs the capability. The last two encounter the identical
+screen and report it differently, which is what artifact review is for.
+
+## The production entry point
+
+An agent invokes a stored capability by name:
 
 ```bash
-.venv/bin/python -m cua.cli replay --artifact evidence/discovery/capability.yaml \
-  --input member_id=100046 --assume-approved
-# savings_balance = 12.40, account_name = Test Member Two
+.venv/bin/python -m cua.cli replay --name lookup_member_balance \
+  --input member_id=100045 --assume-approved
 ```
 
-Omitting `--assume-approved` refuses the run before the application is touched.
-A capability produced by a model has not been reviewed by anyone, and approval
-is the record that somebody did.
+This is the interface a calling agent would use, and it expects what production
+provides: a target application that is running and a session an operator has
+already signed on. Run against the fixture cold — nobody signed on — it does
+exactly what it should:
 
-The flag exists because this demonstration has no artifact store to hold a real
-approval. It is written into the run record as an assumption — `approval_assumed`
-names the artifact's actual state and states that no review was consulted — so
-the evidence does not claim a review that did not happen.
+```
+outcome : intervention_required
+detail  : no declared condition describes this screen
+```
+
+with exit code `4`. The run refused to act on a screen it did not recognise and
+asked for a person. Attaching to a session someone else owns is the first item
+under *Cuts* in [REPORT.md](REPORT.md); until then the scripts in `scripts/` are
+the demonstration path, because they can stand in for the operator.
+
+To run the fixture application standalone for the CLI:
+
+```bash
+.venv/bin/python target_app/app.py        # http://127.0.0.1:5055
+```
+
+`--assume-approved` exists because a discovered artifact is marked `draft` and a
+draft does not run unattended. It is recorded in the run as an assumption —
+`approval_assumed` names the artifact's real state and that no review was
+consulted — so the evidence never claims a review that did not happen.
 
 **Exit codes**
 
@@ -245,17 +275,12 @@ Two further scenarios, both of which stop rather than succeed:
 
 ### 2. Replay
 
-Uses the artifact discovery just produced. See [Quick start](#quick-start).
+Discovery stores the compiled artifact under `capabilities/` and a copy under
+`evidence/discovery/`. Replay it — see [Quick start](#quick-start):
 
 ```bash
 .venv/bin/python scripts/replay_demo.py
 ```
-
-Runs three replays and writes each to `evidence/`: the compiled artifact against
-a member who exists, the same artifact against one who does not, and the
-reviewed artifact against that same screen. The last two return different
-answers to an identical situation, which is what the approval state exists to
-capture.
 
 ### 3. Handover
 
@@ -281,7 +306,7 @@ saying they are finished is a claim about the person, not about the application.
 The full suite runs offline: no API key, no network, no real credentials.
 
 ```bash
-.venv/bin/pytest                      # 256 tests
+.venv/bin/pytest
 .venv/bin/mypy src target_app tests   # strict
 .venv/bin/ruff check .
 ```
@@ -309,7 +334,8 @@ src/cua/composition.py   wires adapters to ports; the only module in the package
 src/cua/cli.py           argument parsing and exit codes
 
 target_app/              the legacy application under automation
-evidence/                recorded runs
+capabilities/            stored capabilities — the product; versions are never overwritten
+evidence/                recorded runs — proof
 scripts/                 the operations requiring a person to be present
 ```
 

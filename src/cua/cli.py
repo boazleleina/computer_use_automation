@@ -69,7 +69,14 @@ def build_parser() -> argparse.ArgumentParser:
         "replay",
         help="execute a stored capability; no model is constructed",
     )
-    replay.add_argument("--artifact", required=True, metavar="PATH", help="the capability file")
+    source = replay.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--name", metavar="CAPABILITY", help="a stored capability, loaded from the artifact store"
+    )
+    source.add_argument("--artifact", metavar="PATH", help="a capability file, loaded directly")
+    replay.add_argument(
+        "--version", default="1.0.0", metavar="SEMVER", help="with --name (default: 1.0.0)"
+    )
     replay.add_argument(
         "--input",
         action="append",
@@ -111,6 +118,7 @@ def _replay(args: argparse.Namespace) -> int:
 
     from cua.app.replay import ReplayCapability
     from cua.composition import (
+        artifact_store,
         clock,
         evidence_sink,
         load_settings,
@@ -120,7 +128,14 @@ def _replay(args: argparse.Namespace) -> int:
     from cua.domain.artifact import capability_from_document
 
     settings = load_settings(Path(args.config))
-    document = yaml.safe_load(Path(args.artifact).read_text(encoding="utf-8"))
+    if args.name:
+        # The production path: a capability is invoked by name and version out
+        # of the store, which is the only place an approval can be recorded
+        # against a version. A path is for looking at a file before it is
+        # stored.
+        document = artifact_store(settings).load(args.name, args.version)
+    else:
+        document = yaml.safe_load(Path(args.artifact).read_text(encoding="utf-8"))
     capability = capability_from_document(document)
 
     inputs = _inputs(args.input)

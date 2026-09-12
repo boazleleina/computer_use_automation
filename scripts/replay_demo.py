@@ -45,7 +45,8 @@ EVIDENCE = Path("evidence")
 COMPILED = Path("evidence/discovery/capability.yaml")
 REVIEWED = Path("tests/fixtures/member_lookup.handwritten.yaml")
 
-# Three runs, and the third is the reason there are three.
+# Four runs. The second is the parameterisation claim made as a record rather
+# than a sentence; the last two are the reason for the other two.
 #
 # A compiled artifact only carries conditions for the screens the discovery run
 # actually passed through, because a run that reached its goal never met a
@@ -58,6 +59,12 @@ REVIEWED = Path("tests/fixtures/member_lookup.handwritten.yaml")
 # side by side than as a paragraph.
 RUNS = (
     ("replay_success", COMPILED, "100045", "compiled artifact, member exists"),
+    (
+        "replay_success_other_member",
+        COMPILED,
+        "100046",
+        "the same artifact, a member the discovery run never saw",
+    ),
     ("replay_not_found", COMPILED, "100099", "compiled artifact, member does not exist"),
     (
         "replay_not_found_reviewed",

@@ -31,10 +31,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from cua.adapters.clocks import RealClock
 from cua.adapters.errors import ConfigurationError
+from cua.adapters.fs_artifact_store import FilesystemArtifactStore
 from cua.adapters.fs_evidence_sink import FilesystemEvidenceSink
 from cua.app.discover import DiscoveryLimits
 from cua.domain.actions import ActionType
@@ -45,6 +46,7 @@ from cua.domain.policy import (
     Rendering,
     Sensitivity,
 )
+from cua.ports.artifact_store import ArtifactStore
 from cua.ports.clock import Clock
 from cua.ports.evidence import EvidenceSink
 from cua.ports.surface import Surface
@@ -52,27 +54,40 @@ from cua.ports.surface import Surface
 DEFAULT_CONFIG = Path("config.yaml")
 
 
-class SurfaceSettings(BaseModel):
+class Strict(BaseModel):
+    """A settings block that refuses keys nothing reads.
+
+    A config key nobody consumes is a lie that survives review: it reads as a
+    knob, and turning it does nothing. Five of them accumulated before this
+    was added — capture_dom, step_ms, never_capture among them — each looking
+    like a control over behaviour it had no effect on.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SurfaceSettings(Strict):
     """Which surface, and where it points."""
 
     kind: str = "playwright"
-    base_url: str = "http://127.0.0.1:5000"
+    base_url: str = "http://127.0.0.1:5055"
     headless: bool = False
+    viewport: dict[str, int] = Field(default_factory=lambda: {"width": 1280, "height": 800})
 
 
-class ModelSettings(BaseModel):
+class ModelSettings(Strict):
     provider: str = "anthropic"
     name: str
     max_tokens: int = 4096
 
 
-class DiscoverySettings(BaseModel):
+class DiscoverySettings(Strict):
     max_steps: int = 40
     run_ms: int = 900_000
     stop_on_repeated_state: bool = True
 
 
-class PolicySettings(BaseModel):
+class PolicySettings(Strict):
     """The guardrails, as text, before anything has checked them.
 
     Actions are validated against ActionType here rather than downstream: a
@@ -86,23 +101,30 @@ class PolicySettings(BaseModel):
     denied_controls: list[dict[str, str]] = Field(default_factory=list)
 
 
-class RedactionSettings(BaseModel):
+class RedactionSettings(Strict):
     secret: str = "drop"
     personal: str = "mask"
     internal: str = "record"
     unclassified: str = "drop"
 
 
-class EvidenceSettings(BaseModel):
+class EvidenceSettings(Strict):
     dir: str = "evidence"
     redaction: RedactionSettings = Field(default_factory=RedactionSettings)
 
 
-class TimeoutSettings(BaseModel):
+class ArtifactSettings(Strict):
+    """Where stored capabilities live. Separate from evidence: an artifact is
+    the product, evidence is proof of a run."""
+
+    dir: str = "capabilities"
+
+
+class TimeoutSettings(Strict):
     action_ms: int = 5000
 
 
-class Settings(BaseModel):
+class Settings(Strict):
     """config.yaml, validated.
 
     Every section has defaults, so a partial file is a usable file. The one
@@ -115,6 +137,7 @@ class Settings(BaseModel):
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     policy: PolicySettings = Field(default_factory=PolicySettings)
     evidence: EvidenceSettings = Field(default_factory=EvidenceSettings)
+    artifacts: ArtifactSettings = Field(default_factory=ArtifactSettings)
     timeout: TimeoutSettings = Field(default_factory=TimeoutSettings)
 
 
@@ -225,7 +248,10 @@ def surface_session(settings: Settings) -> Iterator[Surface]:
         from cua.adapters.playwright_surface import browser_session
 
         with browser_session(
-            settings.surface.base_url, headless=settings.surface.headless
+            settings.surface.base_url,
+            headless=settings.surface.headless,
+            viewport=settings.surface.viewport,
+            action_timeout_ms=settings.timeout.action_ms,
         ) as surface:
             yield surface
         return
@@ -234,6 +260,16 @@ def surface_session(settings: Settings) -> Iterator[Surface]:
         f"surface.kind is {settings.surface.kind!r}; this build constructs 'playwright'. "
         "The scripted surface is a test fixture and is wired by the test that wants it."
     )
+
+
+def artifact_store(settings: Settings) -> ArtifactStore:
+    """Where capabilities are kept between being compiled and being run.
+
+    The one store, so that "which version was approved" has one answer.
+    Versions are never overwritten there; publishing over an approved artifact
+    is refused rather than resolved in favour of whoever wrote last.
+    """
+    return FilesystemArtifactStore(root=Path(settings.artifacts.dir))
 
 
 def clock() -> Clock:

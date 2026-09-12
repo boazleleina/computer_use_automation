@@ -1,16 +1,16 @@
 {"event": "approval_assumed", "artifact_approval": "draft", "source": "scripts/replay_demo.py", "detail": "no review record was consulted; a reviewer did not approve this version"}
-{"event": "run_started", "at": "2026-09-12T06:58:23.852532+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "read_only", "approval": "approved"}
-{"event": "step_started", "at": "2026-09-12T06:58:23.891713+00:00", "step": "enter_member_number", "action": "type"}
-{"event": "classified", "at": "2026-09-12T06:58:23.914620+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:23.914824+00:00", "step": "enter_member_number", "intent": "Member Number search field", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:23.914886+00:00", "step": "enter_member_number", "action": "type", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:58:23.917268+00:00", "step": "enter_member_number", "action": "type", "value": "****0099"}
-{"event": "classified", "at": "2026-09-12T06:58:23.940776+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
-{"event": "checkpoint", "at": "2026-09-12T06:58:23.940956+00:00", "step": "enter_member_number", "held": true}
-{"event": "step_started", "at": "2026-09-12T06:58:23.941024+00:00", "step": "submit_lookup", "action": "click"}
-{"event": "classified", "at": "2026-09-12T06:58:23.962330+00:00", "step": "submit_lookup", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
-{"event": "resolved", "at": "2026-09-12T06:58:23.962466+00:00", "step": "submit_lookup", "intent": "Find button in the Member Enquiry panel", "via_signal": "role_name", "signal_index": 0, "skipped": []}
-{"event": "policy_check", "at": "2026-09-12T06:58:23.962520+00:00", "step": "submit_lookup", "action": "click", "allowed": true, "rule": null}
-{"event": "acted", "at": "2026-09-12T06:58:23.982904+00:00", "step": "submit_lookup", "action": "click", "value": null}
-{"event": "classified", "at": "2026-09-12T06:58:24.017589+00:00", "step": "submit_lookup", "condition": "member_not_found", "outcome": "business_outcome", "matched": ["search_page_ready", "member_not_found"]}
-{"event": "run_finished", "at": "2026-09-12T06:58:24.017816+00:00", "outcome": "business_outcome", "condition": "member_not_found", "code": "MEMBER_NOT_FOUND", "detail": "No member exists with the supplied number.", "step": "submit_lookup", "expected": null, "observed": null, "evidence_ref": null, "run_state": "failed"}
+{"event": "run_started", "at": "2026-09-12T07:09:27.827087+00:00", "capability": "lookup_member_balance", "version": "1.0.0", "effect": "read_only", "approval": "approved"}
+{"event": "step_started", "at": "2026-09-12T07:09:27.869955+00:00", "step": "enter_member_number", "action": "type"}
+{"event": "classified", "at": "2026-09-12T07:09:27.895228+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:27.895427+00:00", "step": "enter_member_number", "intent": "Member Number search field", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:27.895491+00:00", "step": "enter_member_number", "action": "type", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:27.897968+00:00", "step": "enter_member_number", "action": "type", "value": "****0099"}
+{"event": "classified", "at": "2026-09-12T07:09:27.921741+00:00", "step": "enter_member_number", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "checkpoint", "at": "2026-09-12T07:09:27.921939+00:00", "step": "enter_member_number", "held": true}
+{"event": "step_started", "at": "2026-09-12T07:09:27.922007+00:00", "step": "submit_lookup", "action": "click"}
+{"event": "classified", "at": "2026-09-12T07:09:27.944208+00:00", "step": "submit_lookup", "condition": "search_page_ready", "outcome": "success", "matched": ["search_page_ready"]}
+{"event": "resolved", "at": "2026-09-12T07:09:27.944364+00:00", "step": "submit_lookup", "intent": "Find button in the Member Enquiry panel", "via_signal": "role_name", "signal_index": 0, "skipped": []}
+{"event": "policy_check", "at": "2026-09-12T07:09:27.944421+00:00", "step": "submit_lookup", "action": "click", "allowed": true, "rule": null}
+{"event": "acted", "at": "2026-09-12T07:09:27.957493+00:00", "step": "submit_lookup", "action": "click", "value": null}
+{"event": "classified", "at": "2026-09-12T07:09:27.991904+00:00", "step": "submit_lookup", "condition": "member_not_found", "outcome": "business_outcome", "matched": ["search_page_ready", "member_not_found"]}
+{"event": "run_finished", "at": "2026-09-12T07:09:27.992098+00:00", "outcome": "business_outcome", "condition": "member_not_found", "code": "MEMBER_NOT_FOUND", "detail": "No member exists with the supplied number.", "step": "submit_lookup", "expected": null, "observed": null, "evidence_ref": null, "run_state": "failed"}

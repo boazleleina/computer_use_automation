@@ -289,7 +289,12 @@ exercised by two implementations, which is what demonstrates it is a seam.
 `cua discover` as a subcommand, since discovery needs a signed-on session and a
 subcommand would require a credential in a flag. Assisted LLM recovery on replay
 failure, which is incompatible with the premise that the decision was made at
-review time.
+review time. And a discovered **mutating** capability: the fixture application
+carries a full sub-account flow — form, review, confirmation — and no discovery
+run was made against it. The `mutating` and `irreversible` gates are exercised
+by tests that set the effect class directly, not by a flow the compiler
+classified that way, and that is a weaker demonstration than the read-only path
+received.
 
 **Next, in order.**
 
