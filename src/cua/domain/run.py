@@ -145,6 +145,27 @@ class Run:
         self._require(RunState.RUNNING, "advance")
         return replace(self, step_index=self.step_index + 1)
 
+    def start_over(self) -> "Run":
+        """Go back to the first step, keeping what the run has spent.
+
+        For after a handover, where the reason the run stopped is also a reason
+        its earlier steps no longer hold. Signing back on returns an empty
+        search page: the member number a previous step typed is gone, so
+        resuming at the step that was interrupted would submit an empty search
+        and report the application broken.
+
+        The budgets do not reset. Escalations and recoveries already spent stay
+        spent, which is what stops a run that can be rescued once from being
+        rescued indefinitely — the second escalation for the same reason fails
+        the run rather than asking again.
+
+        Whether starting over is safe at all is not this object's judgement. A
+        capability that has already submitted something must not silently do it
+        twice, and the caller decides that from the capability's effect.
+        """
+        self._require(RunState.RUNNING, "start_over")
+        return replace(self, step_index=0)
+
     def escalate(self, reason: EscalationReason, resume_checkpoint: str) -> "Run":
         """Ask for a person, or give up if this problem has already had its turn."""
         self._reject_if_terminal("escalate")
